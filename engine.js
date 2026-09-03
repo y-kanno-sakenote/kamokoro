@@ -169,29 +169,36 @@
     return faces.map(function (f) { return f.join('+'); }).join(',');
   }
 
-  // ---- カスタム上限（spec_v3.md §2.1・2026-09-03改訂） ----------------------
-  // ✨は1ダイスに1面まで。固定2面は数えない。
-  // 素の面の✨（全キャラ slots の1つ）もこの上限に含める＝チップの✨を積むには素の✨面を外す。
-  var LIMIT = { wild: 1 };
-  var LIMIT_MSG = { wild: '✨は1面まで' };
+  // ---- カスタム上限（spec_v3.md §2.1・§3.1・2026-09-03改訂） ----------------
+  // 同じ種類のエネは、固定2面を含めて1ダイスに2面まで（🌾🍚💧🔥それぞれ）。✨は1面まで（据え置き）。
+  // 固定2面は同種なので、その種類のチップはカスタム枠に置けない。
+  var LIMIT = { rice: 2, koji: 2, water: 2, heat: 2, wild: 1 };
+  var LIMIT_MSG = {
+    rice: '🌾は2面まで', koji: '🍚は2面まで', water: '💧は2面まで', heat: '🔥は2面まで',
+    wild: '✨は1面まで'
+  };
 
   // スロット i の実効面（チップがあればその面・無ければ素の面）
   function slotFace(char, chips, i) {
     var c = chips && chips[i];
     return (c && CHIPS[c]) ? CHIPS[c].face : [char.slots[i]];
   }
+  // 固定2面＋カスタム4面（素の面 or チップ）を種類ごとに数える
   function countSlots(char, chips) {
-    var wild = 0;
-    for (var i = 0; i < char.slots.length; i++) {
-      var f = slotFace(char, chips, i);
-      if (f[0] === WILD) wild++;
+    var n = { rice: 0, koji: 0, water: 0, heat: 0, wild: 0 }, i, t;
+    for (i = 0; i < char.fixed.length; i++) { t = char.fixed[i]; n[t]++; }
+    for (i = 0; i < char.slots.length; i++) {
+      t = slotFace(char, chips, i)[0];
+      n[t]++;
     }
-    return { wild: wild };
+    return n;
   }
   // OK/理由を返す。reason は空文字（OK）か LIMIT_MSG のどれか
   function validateSlots(char, chips) {
     var n = countSlots(char, chips);
-    if (n.wild > LIMIT.wild) return { ok: false, kind: 'wild', reason: LIMIT_MSG.wild };
+    for (var k in LIMIT) {
+      if (n[k] > LIMIT[k]) return { ok: false, kind: k, reason: LIMIT_MSG[k] };
+    }
     return { ok: true, kind: null, reason: '' };
   }
   // slot に chipKey（null=はずす）をはめられるか
@@ -215,8 +222,7 @@
       for (i = cur.length - 1; i >= 0 && !done; i--) {
         var c = cur[i];
         if (!c || !CHIPS[c]) continue;
-        var isWild = CHIPS[c].face.length === 1 && CHIPS[c].face[0] === WILD;
-        if (v.kind === 'wild' && isWild) {
+        if (CHIPS[c].face[0] === v.kind) {
           removed.push(c); cur[i] = null; done = true;
         }
       }
