@@ -19,97 +19,111 @@
   h1{font-size:26px;margin:8px 0 2px;letter-spacing:.08em}
   .lead{color:var(--sub);font-size:13px;margin:0 0 14px}
 
-  /* キャラ選択 */
+  /* 1. キャラ選択 */
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 10px;text-align:center;cursor:pointer}
   .card:active{transform:scale(.97)}
   .card .em{font-size:40px;line-height:1.1}
   .card .nm{font-size:15px;font-weight:700;margin-top:4px}
-  .card .tg{font-size:11px;color:var(--sub);margin-top:3px;min-height:28px}
+  .card .tp{font-size:11px;color:var(--sub);margin-top:3px}
   .card .hp{font-size:12px;color:var(--accent);margin-top:4px}
 
-  /* バトル */
+  /* 2. バトル */
   .fighter{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
   .fighter .em{font-size:38px}
   .fighter .info{flex:1;min-width:0}
-  .fighter .nm{font-size:14px;font-weight:700;display:flex;justify-content:space-between}
-  .fighter .hpn{font-weight:400;color:var(--muted,#aaa);font-size:12px}
+  .fighter .nm{font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
+  .fighter .hpn{font-weight:400;color:var(--sub);font-size:12px}
   .bar{height:9px;background:#2c2620;border-radius:5px;margin-top:6px;overflow:hidden}
   .bar i{display:block;height:100%;background:var(--hp);transition:width .35s}
   .bar i.low{background:var(--hp2)}
-  .badge{display:inline-block;font-size:11px;color:var(--accent);margin-top:4px;min-height:14px}
+  .badge{display:block;font-size:11px;color:var(--accent);margin-top:4px;min-height:14px}
   .hit{animation:hit .4s}
   @keyframes hit{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 
-  .stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;padding:14px 0}
-  .movebox{text-align:center}
-  .movebox .lb{font-size:11px;color:var(--sub)}
-  .movebox .mv{font-size:22px;font-weight:700;margin-top:2px}
-  .dice{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-  .die{width:76px;height:76px;border-radius:18px;background:var(--panel);border:3px solid var(--line);
-    display:flex;align-items:center;justify-content:center;font-size:40px;cursor:pointer;transition:transform .15s}
-  .die.sel{border-color:var(--accent);background:#332a1c;transform:translateY(-8px)}
-  .die.roll{animation:shake .45s}
-  @keyframes shake{0%{transform:rotate(0)}20%{transform:rotate(-14deg) translateY(-6px)}
-    45%{transform:rotate(12deg) translateY(4px)}70%{transform:rotate(-7deg)}100%{transform:rotate(0)}}
-  .hint{font-size:12px;color:var(--sub);min-height:16px;text-align:center}
+  .stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;padding:12px 0}
+  .turnlb{font-size:12px;color:var(--sub);min-height:16px}
+  .dicerow{display:flex;gap:10px;align-items:center;justify-content:center}
+  .die{border-radius:16px;background:var(--panel);border:3px solid var(--line);
+    display:flex;align-items:center;justify-content:center}
+  .die.big{width:86px;height:86px;font-size:46px;border-color:var(--accent)}
+  .die.en{width:54px;height:54px;font-size:28px}
+  .die.off{opacity:.22}
+  .rolling{animation:tumble .6s ease-in-out}
+  @keyframes tumble{
+    0%{transform:rotate(0) translateY(0)}
+    20%{transform:rotate(-160deg) translateY(-14px)}
+    45%{transform:rotate(140deg) translateY(8px)}
+    70%{transform:rotate(-80deg) translateY(-6px)}
+    100%{transform:rotate(0) translateY(0)}}
+  .result{font-size:19px;font-weight:700;min-height:26px;text-align:center}
 
-  .log{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.7;min-height:74px}
-  .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .log div:last-child{color:var(--accent)}
+  /* 技ボタン */
+  .moves{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .mv{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 8px;
+    color:var(--fg);font-family:inherit;text-align:left;cursor:pointer;line-height:1.35}
+  .mv:active{transform:scale(.97)}
+  .mv:disabled{opacity:.32;cursor:default}
+  .mv .n{font-size:14px;font-weight:700;display:block}
+  .mv .c{font-size:12px;color:var(--sub);display:block;margin-top:2px}
+  .mv .o{font-size:11px;color:var(--accent);display:block;margin-top:1px}
 
-  .btns{display:flex;gap:10px;margin-top:12px}
-  button{flex:1;padding:15px 8px;font-size:16px;font-weight:700;border-radius:12px;border:none;
-    background:var(--accent);color:#1a1409;cursor:pointer;font-family:inherit}
-  button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
-  button:disabled{opacity:.35}
+  .log{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;
+    font-size:13px;line-height:1.7;min-height:74px;margin-top:10px}
+  .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--sub)}
+  .log div:last-child{color:var(--fg)}
 
-  /* 結果 */
-  .result{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px}
-  .result .em{font-size:76px}
-  .result .big{font-size:32px;font-weight:700}
-  .result .sub{color:var(--sub);font-size:13px;margin-bottom:16px}
+  /* 3. 結果 */
+  .endbox{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px}
+  .endbox .big{font-size:56px}
+  .endbox .msg{font-size:24px;font-weight:700}
+  .btn{background:var(--accent);color:#221a0c;border:0;border-radius:12px;padding:13px 22px;
+    font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;width:100%;max-width:260px}
+  .btn.sub{background:transparent;color:var(--sub);border:1px solid var(--line)}
 </style>
 </head>
 <body>
 <div id="app">
 
+  <!-- 1. キャラ選択 -->
   <section id="s-select" class="screen on">
     <h1>醸しコロ</h1>
-    <p class="lead">サイコロを振って技を出す。振り直しは1回だけ。</p>
+    <p class="lead">酵母を1体えらぶ。相手はおまかせ。</p>
     <div class="cards" id="cards"></div>
   </section>
 
+  <!-- 2. バトル -->
   <section id="s-battle" class="screen">
     <div class="fighter" id="f-foe">
       <div class="em"></div>
-      <div class="info"><div class="nm"><span></span><b class="hpn"></b></div><div class="bar"><i></i></div><div class="badge"></div></div>
+      <div class="info"><div class="nm"><span class="n"></span><span class="hpn"></span></div>
+        <div class="bar"><i></i></div><span class="badge"></span></div>
     </div>
 
     <div class="stage">
-      <div class="movebox"><div class="lb" id="mv-lb"></div><div class="mv" id="mv-nm">—</div></div>
-      <div class="dice" id="dice"></div>
-      <div class="hint" id="hint"></div>
+      <div class="turnlb" id="turnlb"></div>
+      <div class="dicerow"><div class="die big" id="dchar">🧍</div></div>
+      <div class="dicerow" id="denergy"></div>
+      <div class="result" id="result"></div>
     </div>
 
-    <div class="log" id="log"></div>
-    <div class="btns" id="btns"></div>
-
-    <div class="fighter" id="f-me" style="margin-top:12px">
+    <div class="fighter" id="f-me">
       <div class="em"></div>
-      <div class="info"><div class="nm"><span></span><b class="hpn"></b></div><div class="bar"><i></i></div><div class="badge"></div></div>
+      <div class="info"><div class="nm"><span class="n"></span><span class="hpn"></span></div>
+        <div class="bar"><i></i></div><span class="badge"></span></div>
     </div>
+
+    <div class="moves" id="moves"></div>
+    <div class="log" id="log"></div>
   </section>
 
-  <section id="s-result" class="screen">
-    <div class="result">
-      <div class="em" id="r-em"></div>
-      <div class="big" id="r-big"></div>
-      <div class="sub" id="r-sub"></div>
-    </div>
-    <div class="btns">
-      <button id="b-again">もう一回</button>
-      <button id="b-back" class="ghost">キャラ選択へ</button>
+  <!-- 3. 結果 -->
+  <section id="s-end" class="screen">
+    <div class="endbox">
+      <div class="big" id="end-em"></div>
+      <div class="msg" id="end-msg"></div>
+      <button class="btn" id="again">もう一回</button>
+      <button class="btn sub" id="toselect">キャラ選択へ</button>
     </div>
   </section>
 
@@ -120,195 +134,190 @@
 (function(){
   'use strict';
   var E = window.KamoshiEngine;
-  var $ = function(id){ return document.getElementById(id); };
+  var ME = 0, FOE = 1;
+  var st = null, myChar = null, foeChar = null, busy = false, logs = [];
 
-  var st=null, meIdx=0, foeIdx=1, logs=[], turn=null, sel=[], busy=false;
+  function $(id){ return document.getElementById(id); }
+  function show(id){
+    ['s-select','s-battle','s-end'].forEach(function(s){ $(s).classList.toggle('on', s===id); });
+  }
+  function em(k){ return E.ORIENT[k].emoji; }
+  function en(k){ return E.ENERGY[k].emoji; }
 
   // ---- キャラ選択 ----
   E.CHARS.forEach(function(c){
-    var d=document.createElement('div');
-    d.className='card';
-    d.innerHTML='<div class="em">'+c.emoji+'</div><div class="nm">'+c.name+'</div>'+
-                '<div class="tg">'+c.tag+'</div><div class="hp">たいりょく '+c.hp+'</div>';
-    d.onclick=function(){ start(c); };
+    var d = document.createElement('div');
+    d.className = 'card';
+    d.innerHTML = '<div class="em">'+c.emoji+'</div><div class="nm">'+c.name+'</div>'+
+                  '<div class="tp">'+c.type+'</div><div class="hp">HP '+c.hp+'</div>';
+    d.onclick = function(){ start(c); };
     $('cards').appendChild(d);
   });
 
-  function show(id){
-    ['s-select','s-battle','s-result'].forEach(function(x){ $(x).classList.toggle('on', x===id); });
+  function start(c){
+    myChar = c;
+    foeChar = E.CHARS[Math.floor(Math.random()*E.CHARS.length)];
+    newBattle();
   }
 
-  var lastMine=null;
-  function start(mine){
-    lastMine = mine;
-    var foe = E.CHARS[Math.floor(Math.random()*E.CHARS.length)];
-    var first = Math.random()<0.5 ? 0 : 1;   // 先攻はランダム
-    st = E.newState(mine, foe, first);
-    meIdx=0; foeIdx=1; logs=[]; turn=null; sel=[]; busy=false;
-    paint(); setDice([],[]); $('mv-nm').textContent='—'; $('mv-lb').textContent='';
+  function newBattle(){
+    st = E.newState(myChar, foeChar);
+    logs = []; busy = (st.turn === FOE);
+    $('result').textContent = '';
+    $('dchar').textContent = '🧍';
+    drawFighters(); drawEnergySlots(3); drawMoves(); drawLog();
     show('s-battle');
-    pushLog(first===0 ? 'あなたの先攻！' : foe.name+'の先攻！');
-    if(first===0) phaseReady(); else setTimeout(cpuTurn, 900);
+    if (st.turn === FOE) { $('turnlb').textContent = '相手のばん'; setTimeout(foeTurn, 900); }
+    else $('turnlb').textContent = 'ねらう技をえらぶ';
   }
 
-  // ---- 描画 ----
-  function paintSide(el, side, shake){
-    var c=side.char;
-    el.querySelector('.em').textContent=c.emoji;
-    el.querySelector('.nm span').textContent=c.name;
-    el.querySelector('.hpn').textContent='のこり '+Math.max(0,side.hp);
-    var pct=Math.max(0,side.hp)/side.maxHp*100;
-    var bar=el.querySelector('.bar i');
-    bar.style.width=pct+'%';
-    bar.classList.toggle('low', pct<=30);
-    var b=[];
-    if(side.barrier) b.push('🛡 まもり');
-    if(side.extraDie) b.push('🎲 次は4個');
-    el.querySelector('.badge').textContent=b.join('　');
-    if(shake){ el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
+  // ---- 表示 ----
+  function drawFighters(){
+    [[ 'f-me', ME, myChar ], [ 'f-foe', FOE, foeChar ]].forEach(function(p){
+      var el = $(p[0]), side = p[1], c = p[2];
+      el.querySelector('.em').textContent = c.emoji;
+      el.querySelector('.n').textContent = c.name;
+      el.querySelector('.hpn').textContent = st.hp[side] + ' / ' + st.maxHp[side];
+      var pct = Math.max(0, st.hp[side] / st.maxHp[side]) * 100;
+      var bar = el.querySelector('.bar i');
+      bar.style.width = pct + '%';
+      bar.classList.toggle('low', pct <= 30);
+      var b = [];
+      if (st.halveNext[side]) b.push('つぎ半減');
+      if (st.energyMinus[side]) b.push('つぎエネコロ-1');
+      el.querySelector('.badge').textContent = b.join(' / ');
+    });
   }
-  function paint(shakeSide){
-    paintSide($('f-me'), st.sides[meIdx], shakeSide==='me');
-    paintSide($('f-foe'), st.sides[foeIdx], shakeSide==='foe');
-  }
-  function pushLog(t){
-    logs.push(t); if(logs.length>3) logs.shift();
-    $('log').innerHTML = logs.map(function(x){ return '<div>'+x+'</div>'; }).join('');
-  }
-  function setDice(faces, tappable){
-    var box=$('dice'); box.innerHTML='';
-    faces.forEach(function(f,i){
-      var d=document.createElement('div');
-      d.className='die roll'+(sel[i]?' sel':'');
-      d.textContent=f;
-      if(tappable){ d.onclick=function(){ sel[i]=!sel[i]; d.classList.toggle('sel', sel[i]); }; }
+
+  function drawEnergySlots(n, faces){
+    var box = $('denergy');
+    box.innerHTML = '';
+    for (var i = 0; i < 3; i++){
+      var d = document.createElement('div');
+      d.className = 'die en' + (i >= n ? ' off' : '');
+      d.textContent = faces ? (i < n ? en(faces[i]) : '·') : '·';
       box.appendChild(d);
+    }
+  }
+
+  // 技ボタンの表示: 技名 / コスト絵文字 威力 / 向き記号+効果
+  function moveLabel(mv){
+    if (mv.kind === 'heal') return '回復' + mv.power;
+    if (mv.kind === 'guard') return '半減';
+    return String(mv.power);
+  }
+  function orientLabel(mv){
+    var e = mv.eff || {}, s = em(mv.orient);
+    if (e.plus) return s + '+' + e.plus;
+    if (e.healPlus) return s + '回復+' + e.healPlus;
+    if (e.heal) return s + '回復' + e.heal;
+    if (e.self) return s + '自分に' + e.self;
+    if (e.minus) return s + '相手エネコロ-1';
+    return s;
+  }
+
+  function drawMoves(){
+    var box = $('moves');
+    box.innerHTML = '';
+    myChar.moves.forEach(function(mv, i){
+      var b = document.createElement('button');
+      b.className = 'mv';
+      b.innerHTML = '<span class="n">' + mv.name + '</span>' +
+        '<span class="c">' + mv.cost.map(en).join('') + '　' + moveLabel(mv) + '</span>' +
+        '<span class="o">' + orientLabel(mv) + '</span>';
+      b.disabled = busy || st.over || st.turn !== ME || i === st.lastMove[ME];
+      b.onclick = function(){ myTurn(i); };
+      box.appendChild(b);
     });
   }
-  function setBtns(list){
-    var b=$('btns'); b.innerHTML='';
-    list.forEach(function(o){
-      var el=document.createElement('button');
-      el.textContent=o.label; if(o.ghost) el.className='ghost';
-      el.onclick=o.fn; b.appendChild(el);
+
+  function drawLog(){
+    $('log').innerHTML = logs.slice(-3).map(function(t){ return '<div>' + t + '</div>'; }).join('');
+  }
+
+  // ---- 1手番の演出 ----
+  function playTurn(side, moveIdx, done){
+    var c = st.chars[side], mv = c.moves[moveIdx];
+    var n = E.energyCount(st, side);
+    $('turnlb').textContent = (side === ME ? 'あなた' : '相手') + 'の「' + mv.name + '」';
+    $('result').textContent = '';
+    drawEnergySlots(n);
+
+    var dc = $('dchar');
+    dc.classList.remove('rolling'); void dc.offsetWidth; dc.classList.add('rolling');
+    Array.prototype.forEach.call($('denergy').children, function(d){
+      d.classList.remove('rolling'); void d.offsetWidth; d.classList.add('rolling');
     });
-  }
 
-  // ---- 自分のターン ----
-  function phaseReady(){
-    busy=false;
-    $('mv-lb').textContent=''; $('mv-nm').textContent='—';
-    setDice([],false); $('hint').textContent='';
-    setBtns([{label:'振る', fn:doRoll}]);
-  }
-
-  function doRoll(){
-    if(busy) return; busy=true;
-    var me=st.sides[meIdx];
-    var n = me.extraDie ? 4 : 3;
-    me.extraDie=false;
-    turn={ moveIdx:E.rollCharDie(me.char), faces:E.rollEnergy(n) };
-    sel=new Array(n).fill(false);
-    var mv=me.char.moves[turn.moveIdx];
-    $('mv-lb').textContent='あなたの技';
-    $('mv-nm').textContent=mv.name+'　'+mv.cost.join('');
-    setDice(turn.faces, true);
-    $('hint').textContent='振り直したいダイスをタップ';
-    paint();
-    setBtns([
-      {label:'振り直す', fn:doReroll},
-      {label:'このまま', ghost:true, fn:doResolveMine}
-    ]);
-    busy=false;
-  }
-
-  function doReroll(){
-    if(busy) return;
-    if(!sel.some(Boolean)){ $('hint').textContent='振り直すダイスを選んでね'; return; }
-    busy=true;
-    turn.faces = turn.faces.map(function(f,i){ return sel[i] ? E.rollEnergyDie() : f; });
-    sel = new Array(turn.faces.length).fill(false);
-    setDice(turn.faces, false);
-    $('hint').textContent='';
-    setTimeout(doResolveMine, 500);
-  }
-
-  function doResolveMine(){
-    busy=true;
-    setDice(turn.faces, false);
-    setBtns([]);
-    var me=st.sides[meIdx], foe=st.sides[foeIdx];
-    var res=E.resolveMove(me.char, turn.moveIdx, turn.faces, {attacker:me, defender:foe});
-    logTurn(me.char.name, res);
-    paint('foe');
-    if(!checkEnd()) setTimeout(cpuTurn, 1000);
-  }
-
-  // ---- 相手のターン（自動進行）----
-  function cpuTurn(){
-    var foe=st.sides[foeIdx], me=st.sides[meIdx];
-    var n = foe.extraDie ? 4 : 3;
-    foe.extraDie=false;
-    var moveIdx=E.rollCharDie(foe.char);
-    var faces=E.rollEnergy(n);
-    var mv=foe.char.moves[moveIdx];
-    sel=new Array(n).fill(false);
-    $('mv-lb').textContent=foe.char.name+'の技';
-    $('mv-nm').textContent=mv.name+'　'+mv.cost.join('');
-    setDice(faces,false);
-    $('hint').textContent='';
-    paint();
+    var r = E.resolveTurn(st, moveIdx);
 
     setTimeout(function(){
-      var keep=E.cpuKeepMask(foe.char, moveIdx, faces);
-      var after=faces.map(function(f,i){ return keep[i] ? f : E.rollEnergyDie(); });
-      var rerolled = keep.some(function(k){ return !k; });
-      if(rerolled){ setDice(after,false); $('hint').textContent='振り直した'; }
-      setTimeout(function(){
-        $('hint').textContent='';
-        var res=E.resolveMove(foe.char, moveIdx, after, {attacker:foe, defender:me});
-        logTurn(foe.char.name, res);
-        paint('me');
-        if(!checkEnd()) phaseReady();
-      }, rerolled ? 900 : 300);
-    }, 900);
+      dc.textContent = em(r.orient);
+      drawEnergySlots(r.n, r.faces);
+      var line = describe(side, r);
+      $('result').textContent = line;
+      logs.push((side === ME ? '▶ ' : '◀ ') + line);
+      var target = $(side === ME ? 'f-foe' : 'f-me');
+      if (r.damage) { target.classList.remove('hit'); void target.offsetWidth; target.classList.add('hit'); }
+      drawFighters(); drawLog();
+      setTimeout(done, 700);
+    }, 620);
   }
 
-  function logTurn(who, res){
-    var t;
-    if(res.shizuku){
-      t = who+'は醸せず…「しずく」 '+res.damage+'ダメージ';
-      if(res.selfDamage) t += '（自分にも'+res.selfDamage+'）';
-    }else{
-      t = who+'の「'+res.moveName+'」！ '+res.damage+'ダメージ';
-      if(res.halved) t += '（🛡で半分）';
-      if(res.effect==='extraDie') t += '（🎲 次は4個）';
-      if(res.effect==='barrier') t += '（🛡 まもり）';
+  function describe(side, r){
+    var mv = r.move, s = '';
+    if (!r.success) {
+      s = 'しずく… ' + r.damage + 'ダメージ';
+      if (r.selfDamage) s += '（ロマンで自分に' + r.selfDamage + '）';
+      return s;
     }
-    pushLog(t);
-  }
-
-  function checkEnd(){
-    var me=st.sides[meIdx], foe=st.sides[foeIdx];
-    if(foe.hp<=0 || me.hp<=0){
-      // 攻撃側のダメージが先に通るので、相手が0なら勝ち（雄町の自傷で相打ちでも勝ち）
-      var win = foe.hp<=0;
-      setTimeout(function(){ finish(win); }, 800);
-      return true;
+    if (mv.kind === 'heal') s = mv.name + '！ ' + r.heal + '回復';
+    else if (mv.kind === 'guard') s = mv.name + '！ つぎのダメージ半減';
+    else s = mv.name + '！ ' + r.damage + 'ダメージ';
+    if (r.orientHit) {
+      s += '　' + em(r.orient);
+      if (r.minus) s += ' 相手のエネコロ-1';
+      if (r.selfDamage) s += ' 自分に' + r.selfDamage;
+      if (mv.kind === 'atk' && r.heal) s += ' ' + r.heal + '回復';
     }
-    return false;
+    if (r.halved) s += '（半減）';
+    return s;
   }
 
-  function finish(win){
-    var me=st.sides[meIdx], foe=st.sides[foeIdx];
-    $('r-em').textContent = win ? '🎉' : '💀';
-    $('r-big').textContent = win ? 'いい酒ができた！' : '腐っちゃった…';
-    $('r-sub').textContent = me.char.emoji+me.char.name+'　vs　'+foe.char.emoji+foe.char.name;
-    show('s-result');
+  function myTurn(i){
+    if (busy || st.over || st.turn !== ME) return;
+    busy = true; drawMoves();
+    playTurn(ME, i, afterTurn);
   }
 
-  $('b-again').onclick=function(){ start(lastMine); };
-  $('b-back').onclick=function(){ show('s-select'); };
+  function foeTurn(){
+    if (st.over) { return afterTurn(); }
+    var i = E.cpuChoose(st, FOE);
+    playTurn(FOE, i, afterTurn);
+  }
+
+  function afterTurn(){
+    if (st.over) return end();
+    if (st.turn === FOE) {
+      busy = true; drawMoves();
+      $('turnlb').textContent = '相手のばん';
+      setTimeout(foeTurn, 1000);
+    } else {
+      busy = false;
+      $('turnlb').textContent = 'ねらう技をえらぶ';
+      drawMoves();
+    }
+  }
+
+  function end(){
+    var win = st.winner === ME;
+    $('end-em').textContent = win ? myChar.emoji : foeChar.emoji;
+    $('end-msg').textContent = win ? 'かった！' : 'まけた…';
+    show('s-end');
+  }
+
+  $('again').onclick = function(){ newBattle(); };
+  $('toselect').onclick = function(){ show('s-select'); };
 })();
 </script>
 </body>
