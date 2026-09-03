@@ -324,8 +324,9 @@
       if (r.selfDamage) s += '　ロマンで自分に' + r.selfDamage;
       return s;
     }
-    if (mv.kind === 'heal') s = mv.name + '！ ' + r.heal + '回復';
-    else if (mv.kind === 'guard') s = mv.name + '！ つぎのダメージ半減';
+    // r.heal は上限で切ったあとの「実際に回復した量」（engine.js の healSide が返す差分）
+    if (mv.kind === 'heal') s = mv.name + '！ ' + (r.heal ? r.heal + '回復' : 'まんたん！');
+    else if (mv.kind === 'guard') s = mv.name + '！ つぎ半減';
     else s = mv.name + '！ ' + r.damage + 'ダメージ';
     if (r.halved) s += '（半減）';
     if (r.orientHit) {
