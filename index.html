@@ -27,6 +27,7 @@
   .card .nm{font-size:15px;font-weight:700;margin-top:4px}
   .card .tp{font-size:11px;color:var(--sub);margin-top:3px}
   .card .hp{font-size:12px;color:var(--accent);margin-top:4px}
+  .card .fc{font-size:11px;color:var(--sub);margin-top:5px;line-height:1.5;letter-spacing:.03em}
 
   /* 2. バトル */
   .fighter{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
@@ -45,7 +46,7 @@
 
   /* ダイス置き場: 相手（上・小さめ）と自分（下）で別々に持つ */
   .stage{flex:1;display:flex;flex-direction:column;align-items:center;
-    gap:6px;padding:8px 0;min-height:0}
+    gap:5px;padding:4px 0;min-height:0}
   .stage.foe{justify-content:flex-start}   /* 相手のHPバーのすぐ下 */
   .stage.me{justify-content:flex-end}      /* 自分のHPバーのすぐ上 */
   .turnlb{font-size:12px;color:var(--sub);min-height:16px;white-space:nowrap;
@@ -75,6 +76,9 @@
     100%{transform:rotate(0) translateY(0)}}
   .result{font-size:17px;font-weight:700;min-height:22px;line-height:1.3;text-align:center}
   .stage.foe .result{font-size:14px;min-height:19px}
+  /* 自分・相手の面構成（常時表示・確率は出さない） */
+  .faces{font-size:12px;color:var(--sub);line-height:1.25;white-space:nowrap;letter-spacing:.04em}
+  .stage.foe .faces{font-size:11px;opacity:.8}
 
   /* 技ボタン: 技名 / コスト 威力　向き→おまけ の2段 */
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
@@ -129,6 +133,7 @@
         <div class="ens" id="denergy-foe"></div>
       </div>
       <div class="result" id="res-foe"></div>
+      <div class="faces" id="faces-foe"></div>
     </div>
 
     <!-- 自分のダイス置き場（自分のHPバーのすぐ上） -->
@@ -139,6 +144,7 @@
         <div class="ens" id="denergy-me"></div>
       </div>
       <div class="result" id="res-me"></div>
+      <div class="faces" id="faces-me"></div>
     </div>
 
     <div class="fighter" id="f-me">
@@ -177,6 +183,9 @@
   }
   function em(k){ return E.ORIENT[k].emoji; }
   function en(k){ return E.ENERGY[k].emoji; }
+  // 6面の内訳（エネコロ / キャラコロ）。数値は出さない
+  function energyFaces(c){ return c.energy.map(en).join(''); }
+  function dieFaces(c){ return c.die.map(em).join(''); }
 
   // ---- 側ごとのダイス置き場（上=相手 / 下=自分）----
   function stage(side){ return $(side === ME ? 'stage-me' : 'stage-foe'); }
@@ -195,7 +204,8 @@
     var d = document.createElement('div');
     d.className = 'card';
     d.innerHTML = '<div class="em">'+c.emoji+'</div><div class="nm">'+c.name+'</div>'+
-                  '<div class="tp">'+c.type+'</div><div class="hp">HP '+c.hp+'</div>';
+                  '<div class="tp">'+c.type+'</div><div class="hp">HP '+c.hp+'</div>'+
+                  '<div class="fc">'+energyFaces(c)+'<br>'+dieFaces(c)+'</div>';
     d.onclick = function(){ start(c); };
     $('cards').appendChild(d);
   });
@@ -215,6 +225,8 @@
       dchar(s).textContent = '🧍';
       drawEnergySlots(s, 3);
     });
+    $('faces-me').textContent = '🎲 ' + energyFaces(myChar) + '　' + dieFaces(myChar);
+    $('faces-foe').textContent = '🎲 ' + energyFaces(foeChar) + '　' + dieFaces(foeChar);
     dimStage(st.turn);
     drawFighters(); drawMoves(); drawLog();
     show('s-battle');
