@@ -1,5 +1,5 @@
 // 醸しコロ ロジック層（ブラウザ / node 両用）
-// 数値は docs/spec.md v0 の叩き台をそのまま実装している。ここで勝手に調整しない。
+// 数値は docs/spec.md v1（2026-09-03 sim実測で確定）。変えるときは sim/sim.js で再実測してspecと同期する。
 (function (root, factory) {
   var api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -16,15 +16,15 @@
 
   var CHARS = [
     {
-      id: 'kyokai7', emoji: '🍶', name: '協会7号', hp: 20, tag: 'バランス型',
+      id: 'kyokai7', emoji: '🍶', name: '協会7号', hp: 36, tag: 'なんでもそつなく',
       moves: [
         { name: 'ぷくぷく', cost: [RICE], power: 4 },
         { name: '泡立ち', cost: [RICE, WATER], power: 7 },
-        { name: '高泡', cost: [RICE, RICE, WATER], power: 11 }
+        { name: '高泡', cost: [RICE, RICE, WATER], power: 12 }
       ]
     },
     {
-      id: 'kyokai9', emoji: '🍎', name: '協会9号', hp: 16, tag: '紙装甲・高火力',
+      id: 'kyokai9', emoji: '🍎', name: '協会9号', hp: 35, tag: '一撃が重い',
       moves: [
         { name: 'りんごの香り', cost: [WATER], power: 4 },
         { name: '吟醸のかおり', cost: [WATER, WATER], power: 8 },
@@ -32,31 +32,31 @@
       ]
     },
     {
-      id: 'kikoji', emoji: '🌸', name: '黄麹', hp: 20, tag: 'サポート型',
+      id: 'kikoji', emoji: '🌸', name: '黄麹', hp: 36, tag: '次の手を仕込む',
       moves: [
-        { name: '糖化', cost: [RICE], power: 3, effect: 'extraDie' },
-        { name: '破精込み', cost: [RICE, HEAT], power: 6 },
-        { name: '突き破精', cost: [RICE, RICE, HEAT], power: 10 }
+        { name: '糖化', cost: [RICE], power: 4, effect: 'extraDie' },
+        { name: '破精込み', cost: [RICE, HEAT], power: 7 },
+        { name: '突き破精', cost: [RICE, RICE, HEAT], power: 13 }
       ]
     },
     {
-      id: 'nyusan', emoji: '🥛', name: '乳酸菌', hp: 22, tag: '守り型',
+      id: 'nyusan', emoji: '🥛', name: '乳酸菌', hp: 38, tag: 'まもりが固い',
       moves: [
         { name: 'すっぱ', cost: [WATER], power: 3 },
-        { name: '乳酸バリア', cost: [WATER, HEAT], power: 4, effect: 'barrier' },
-        { name: '雑菌一掃', cost: [WATER, WATER, HEAT], power: 10 }
+        { name: '乳酸バリア', cost: [WATER, HEAT], power: 6, effect: 'barrier' },
+        { name: '雑菌一掃', cost: [WATER, WATER, HEAT], power: 13 }
       ]
     },
     {
-      id: 'yamada', emoji: '🌾', name: '山田錦', hp: 26, tag: '重量級',
+      id: 'yamada', emoji: '🌾', name: '山田錦', hp: 42, tag: 'たいりょく自慢',
       moves: [
         { name: '心白', cost: [RICE], power: 3 },
         { name: '大粒', cost: [RICE, RICE], power: 7 },
-        { name: '酒米の王', cost: [RICE, RICE, RICE], power: 13 }
+        { name: '酒米の王', cost: [RICE, RICE, RICE], power: 14 }
       ]
     },
     {
-      id: 'omachi', emoji: '🔥', name: '雄町', hp: 18, tag: 'ハイリスク',
+      id: 'omachi', emoji: '🔥', name: '雄町', hp: 36, tag: '一発逆転。空振りは痛い',
       moves: [
         { name: 'とろける', cost: [HEAT], power: 5 },
         { name: 'どろどろ', cost: [HEAT, HEAT], power: 9 },

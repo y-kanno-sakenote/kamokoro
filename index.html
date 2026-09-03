@@ -32,8 +32,8 @@
   .fighter{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
   .fighter .em{font-size:38px}
   .fighter .info{flex:1;min-width:0}
-  .fighter .nm{font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
-  .fighter .nm small{color:var(--sub);font-weight:400;font-size:12px}
+  .fighter .nm{font-size:14px;font-weight:700;display:flex;justify-content:space-between}
+  .fighter .hpn{font-weight:400;color:var(--muted,#aaa);font-size:12px}
   .bar{height:9px;background:#2c2620;border-radius:5px;margin-top:6px;overflow:hidden}
   .bar i{display:block;height:100%;background:var(--hp);transition:width .35s}
   .bar i.low{background:var(--hp2)}
@@ -46,9 +46,9 @@
   .movebox .lb{font-size:11px;color:var(--sub)}
   .movebox .mv{font-size:22px;font-weight:700;margin-top:2px}
   .dice{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-  .die{width:66px;height:66px;border-radius:16px;background:var(--panel);border:2px solid var(--line);
-    display:flex;align-items:center;justify-content:center;font-size:34px;cursor:pointer}
-  .die.sel{border-color:var(--accent);background:#332a1c}
+  .die{width:76px;height:76px;border-radius:18px;background:var(--panel);border:3px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:40px;cursor:pointer;transition:transform .15s}
+  .die.sel{border-color:var(--accent);background:#332a1c;transform:translateY(-8px)}
   .die.roll{animation:shake .45s}
   @keyframes shake{0%{transform:rotate(0)}20%{transform:rotate(-14deg) translateY(-6px)}
     45%{transform:rotate(12deg) translateY(4px)}70%{transform:rotate(-7deg)}100%{transform:rotate(0)}}
@@ -76,14 +76,14 @@
 
   <section id="s-select" class="screen on">
     <h1>醸しコロ</h1>
-    <p class="lead">サイコロを振って技を出す。戦略は「振り直し」だけ。</p>
+    <p class="lead">サイコロを振って技を出す。振り直しは1回だけ。</p>
     <div class="cards" id="cards"></div>
   </section>
 
   <section id="s-battle" class="screen">
     <div class="fighter" id="f-foe">
       <div class="em"></div>
-      <div class="info"><div class="nm"><span></span><small></small></div><div class="bar"><i></i></div><div class="badge"></div></div>
+      <div class="info"><div class="nm"><span></span><b class="hpn"></b></div><div class="bar"><i></i></div><div class="badge"></div></div>
     </div>
 
     <div class="stage">
@@ -97,7 +97,7 @@
 
     <div class="fighter" id="f-me" style="margin-top:12px">
       <div class="em"></div>
-      <div class="info"><div class="nm"><span></span><small></small></div><div class="bar"><i></i></div><div class="badge"></div></div>
+      <div class="info"><div class="nm"><span></span><b class="hpn"></b></div><div class="bar"><i></i></div><div class="badge"></div></div>
     </div>
   </section>
 
@@ -109,7 +109,7 @@
     </div>
     <div class="btns">
       <button id="b-again">もう一回</button>
-      <button id="b-back" class="ghost">キャラを選び直す</button>
+      <button id="b-back" class="ghost">キャラ選択へ</button>
     </div>
   </section>
 
@@ -156,14 +156,14 @@
     var c=side.char;
     el.querySelector('.em').textContent=c.emoji;
     el.querySelector('.nm span').textContent=c.name;
-    el.querySelector('.nm small').textContent=Math.max(0,side.hp)+' / '+side.maxHp;
+    el.querySelector('.hpn').textContent='のこり '+Math.max(0,side.hp);
     var pct=Math.max(0,side.hp)/side.maxHp*100;
     var bar=el.querySelector('.bar i');
     bar.style.width=pct+'%';
     bar.classList.toggle('low', pct<=30);
     var b=[];
     if(side.barrier) b.push('🛡 まもり');
-    if(side.extraDie) b.push('✚ ダイス4個');
+    if(side.extraDie) b.push('🎲 次は4個');
     el.querySelector('.badge').textContent=b.join('　');
     if(shake){ el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
   }
@@ -210,7 +210,7 @@
     turn={ moveIdx:E.rollCharDie(me.char), faces:E.rollEnergy(n) };
     sel=new Array(n).fill(false);
     var mv=me.char.moves[turn.moveIdx];
-    $('mv-lb').textContent='この手番の技';
+    $('mv-lb').textContent='あなたの技';
     $('mv-nm').textContent=mv.name+'　'+mv.cost.join('');
     setDice(turn.faces, true);
     $('hint').textContent='振り直したいダイスをタップ';
@@ -277,13 +277,13 @@
   function logTurn(who, res){
     var t;
     if(res.shizuku){
-      t = who+'は うまく醸せず「しずく」… '+res.damage;
-      if(res.selfDamage) t += '（自分にも '+res.selfDamage+'）';
+      t = who+'は醸せず…「しずく」 '+res.damage+'ダメージ';
+      if(res.selfDamage) t += '（自分にも'+res.selfDamage+'）';
     }else{
-      t = who+'の「'+res.moveName+'」！ '+res.damage;
-      if(res.halved) t += '（まもりで半分）';
-      if(res.effect==='extraDie') t += '（次は4個）';
-      if(res.effect==='barrier') t += '（まもり）';
+      t = who+'の「'+res.moveName+'」！ '+res.damage+'ダメージ';
+      if(res.halved) t += '（🛡で半分）';
+      if(res.effect==='extraDie') t += '（🎲 次は4個）';
+      if(res.effect==='barrier') t += '（🛡 まもり）';
     }
     pushLog(t);
   }
@@ -302,7 +302,7 @@
   function finish(win){
     var me=st.sides[meIdx], foe=st.sides[foeIdx];
     $('r-em').textContent = win ? '🎉' : '💀';
-    $('r-big').textContent = win ? 'いい酒ができた！' : '腐造…';
+    $('r-big').textContent = win ? 'いい酒ができた！' : '腐っちゃった…';
     $('r-sub').textContent = me.char.emoji+me.char.name+'　vs　'+foe.char.emoji+foe.char.name;
     show('s-result');
   }
