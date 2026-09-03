@@ -43,14 +43,29 @@
   .hit{animation:hit .4s}
   @keyframes hit{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 
-  .stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;padding:6px 0}
-  .turnlb{font-size:12px;color:var(--sub);min-height:16px}
-  .dicerow{display:flex;gap:10px;align-items:center;justify-content:center}
-  .die{border-radius:16px;background:var(--panel);border:3px solid var(--line);
+  /* ダイス置き場: 相手（上・小さめ）と自分（下）で別々に持つ */
+  .stage{flex:1;display:flex;flex-direction:column;align-items:center;
+    gap:6px;padding:8px 0;min-height:0}
+  .stage.foe{justify-content:flex-start}   /* 相手のHPバーのすぐ下 */
+  .stage.me{justify-content:flex-end}      /* 自分のHPバーのすぐ上 */
+  .turnlb{font-size:12px;color:var(--sub);min-height:16px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .dicerow{display:flex;gap:12px;align-items:center;justify-content:center}
+  .ens{display:flex;gap:7px;align-items:center}
+  .die{border-radius:14px;background:var(--panel);border:3px solid var(--line);
     display:flex;align-items:center;justify-content:center}
-  .die.big{width:86px;height:86px;font-size:46px;border-color:var(--accent)}
-  .die.en{width:54px;height:54px;font-size:28px}
+  .die.big{width:76px;height:76px;font-size:40px;border-color:var(--accent)}
+  .die.en{width:46px;height:46px;border-radius:11px;font-size:24px}
   .die.off{opacity:.22}
+  /* 相手側は一回り小さく */
+  .stage.foe .die{border-width:2px}
+  .stage.foe .die.big{width:60px;height:60px;font-size:32px}
+  .stage.foe .die.en{width:37px;height:37px;border-radius:9px;font-size:19px}
+  /* 手番でない側は薄く残す（直前の出目は消さない） */
+  .stage.dim .die{opacity:.4}
+  .stage.dim .die.off{opacity:.12}
+  .stage.dim .result{opacity:.45}
+  .stage.dim .turnlb{opacity:.6}
   .rolling{animation:tumble .6s ease-in-out}
   @keyframes tumble{
     0%{transform:rotate(0) translateY(0)}
@@ -58,7 +73,8 @@
     45%{transform:rotate(140deg) translateY(8px)}
     70%{transform:rotate(-80deg) translateY(-6px)}
     100%{transform:rotate(0) translateY(0)}}
-  .result{font-size:18px;font-weight:700;min-height:24px;line-height:1.3;text-align:center}
+  .result{font-size:17px;font-weight:700;min-height:22px;line-height:1.3;text-align:center}
+  .stage.foe .result{font-size:14px;min-height:19px}
 
   /* 技ボタン: 技名 / コスト 威力　向き→おまけ の2段 */
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
@@ -105,11 +121,24 @@
         <div class="bar"><i></i></div></div>
     </div>
 
-    <div class="stage">
-      <div class="turnlb" id="turnlb"></div>
-      <div class="dicerow"><div class="die big" id="dchar">🧍</div></div>
-      <div class="dicerow" id="denergy"></div>
-      <div class="result" id="result"></div>
+    <!-- 相手のダイス置き場（相手のHPバーのすぐ下） -->
+    <div class="stage foe dim" id="stage-foe">
+      <div class="turnlb" id="lb-foe"></div>
+      <div class="dicerow">
+        <div class="die big" id="dchar-foe">🧍</div>
+        <div class="ens" id="denergy-foe"></div>
+      </div>
+      <div class="result" id="res-foe"></div>
+    </div>
+
+    <!-- 自分のダイス置き場（自分のHPバーのすぐ上） -->
+    <div class="stage me dim" id="stage-me">
+      <div class="turnlb" id="lb-me"></div>
+      <div class="dicerow">
+        <div class="die big" id="dchar-me">🧍</div>
+        <div class="ens" id="denergy-me"></div>
+      </div>
+      <div class="result" id="res-me"></div>
     </div>
 
     <div class="fighter" id="f-me">
@@ -149,6 +178,18 @@
   function em(k){ return E.ORIENT[k].emoji; }
   function en(k){ return E.ENERGY[k].emoji; }
 
+  // ---- 側ごとのダイス置き場（上=相手 / 下=自分）----
+  function stage(side){ return $(side === ME ? 'stage-me' : 'stage-foe'); }
+  function lb(side){ return $(side === ME ? 'lb-me' : 'lb-foe'); }
+  function res(side){ return $(side === ME ? 'res-me' : 'res-foe'); }
+  function dchar(side){ return $(side === ME ? 'dchar-me' : 'dchar-foe'); }
+  function dbox(side){ return $(side === ME ? 'denergy-me' : 'denergy-foe'); }
+  // 転がるのは手番側だけ。手番でない側は薄く残す
+  function dimStage(active){
+    stage(ME).classList.toggle('dim', active !== ME);
+    stage(FOE).classList.toggle('dim', active !== FOE);
+  }
+
   // ---- キャラ選択 ----
   E.CHARS.forEach(function(c){
     var d = document.createElement('div');
@@ -168,12 +209,17 @@
   function newBattle(){
     st = E.newState(myChar, foeChar);
     logs = []; busy = (st.turn === FOE);
-    $('result').textContent = '';
-    $('dchar').textContent = '🧍';
-    drawFighters(); drawEnergySlots(3); drawMoves(); drawLog();
+    [ME, FOE].forEach(function(s){
+      res(s).textContent = '';
+      lb(s).textContent = '';
+      dchar(s).textContent = '🧍';
+      drawEnergySlots(s, 3);
+    });
+    dimStage(st.turn);
+    drawFighters(); drawMoves(); drawLog();
     show('s-battle');
-    if (st.turn === FOE) { $('turnlb').textContent = '相手のばん'; setTimeout(foeTurn, 900); }
-    else $('turnlb').textContent = 'ねらう技を押すと転がる';
+    if (st.turn === FOE) { lb(FOE).textContent = '相手のばん'; setTimeout(foeTurn, 900); }
+    else lb(ME).textContent = 'ねらう技を押すと転がる';
   }
 
   // ---- 表示 ----
@@ -194,8 +240,8 @@
     });
   }
 
-  function drawEnergySlots(n, faces){
-    var box = $('denergy');
+  function drawEnergySlots(side, n, faces){
+    var box = dbox(side);
     box.innerHTML = '';
     for (var i = 0; i < 3; i++){
       var d = document.createElement('div');
@@ -245,13 +291,14 @@
   function playTurn(side, moveIdx, done){
     var c = st.chars[side], mv = c.moves[moveIdx];
     var n = E.energyCount(st, side);
-    $('turnlb').textContent = (side === ME ? '' : '相手は') + '「' + mv.name + '」をねらう';
-    $('result').textContent = '';
-    drawEnergySlots(n);
+    lb(side).textContent = (side === ME ? '自分の' : '相手の') + '「' + mv.name + '」をねらう';
+    res(side).textContent = '';
+    dimStage(side);
+    drawEnergySlots(side, n);
 
-    var dc = $('dchar');
+    var dc = dchar(side);
     dc.classList.remove('rolling'); void dc.offsetWidth; dc.classList.add('rolling');
-    Array.prototype.forEach.call($('denergy').children, function(d){
+    Array.prototype.forEach.call(dbox(side).children, function(d){
       d.classList.remove('rolling'); void d.offsetWidth; d.classList.add('rolling');
     });
 
@@ -259,9 +306,9 @@
 
     setTimeout(function(){
       dc.textContent = em(r.orient);
-      drawEnergySlots(r.n, r.faces);
+      drawEnergySlots(side, r.n, r.faces);
       var line = describe(side, r);
-      $('result').textContent = line;
+      res(side).textContent = line;
       logs.push((side === ME ? '▶ ' : '◀ ') + line);
       var target = $(side === ME ? 'f-foe' : 'f-me');
       if (r.damage) { target.classList.remove('hit'); void target.offsetWidth; target.classList.add('hit'); }
@@ -306,11 +353,13 @@
     if (st.over) return end();
     if (st.turn === FOE) {
       busy = true; drawMoves();
-      $('turnlb').textContent = '相手のばん';
+      lb(FOE).textContent = '相手のばん';
+      dimStage(FOE);
       setTimeout(foeTurn, 1000);
     } else {
       busy = false;
-      $('turnlb').textContent = 'ねらう技をえらぶ';
+      lb(ME).textContent = 'ねらう技をえらぶ';
+      dimStage(ME);
       drawMoves();
     }
   }
