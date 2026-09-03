@@ -36,19 +36,19 @@
       energy: ['rice', 'rice', 'koji', 'water', 'heat', 'wild'],
       die: ['s', 's', 'a', 'u', 'y', 'g'],
       moves: [
-        { name: 'こつこつ',   cost: ['rice'],                 kind: 'atk',  power: 10, orient: 's', eff: { plus: 10 } },
-        { name: 'あかぞめ',   cost: ['rice', 'koji'],         kind: 'atk',  power: 20, orient: 's', eff: { minus: 1 } },
+        { name: 'こつこつ',   cost: ['rice'],                 kind: 'atk',  power: 10, orient: 's', eff: { plus: 5 } },
+        { name: 'あかぞめ',   cost: ['rice', 'koji'],         kind: 'atk',  power: 25, orient: 's', eff: { minus: 1 } },
         { name: '秋田の底力', cost: ['rice', 'rice', 'koji'], kind: 'atk',  power: 35, orient: 'a', eff: { plus: 10 } },
         { name: 'ご長寿',     cost: ['koji', 'heat'],         kind: 'heal', power: 20, orient: 's', eff: { healPlus: 10 } }
       ]
     },
     {
-      id: 'k7', no: '7', emoji: '🍶', name: '協会7号', type: '🫧泡', hp: 100,
+      id: 'k7', no: '7', emoji: '🍶', name: '協会7号', type: '🫧泡', hp: 105,
       energy: ['rice', 'koji', 'koji', 'water', 'heat', 'wild'],
       die: ['s', 's', 's', 'a', 'y', 'g'],
       moves: [
-        { name: 'ぷくぷく',   cost: ['koji'],                  kind: 'atk',   power: 10, orient: 's', eff: { plus: 10 } },
-        { name: '高泡',       cost: ['koji', 'rice'],          kind: 'atk',   power: 25, orient: 's', eff: { plus: 10 } },
+        { name: 'ぷくぷく',   cost: ['koji'],                  kind: 'atk',   power: 10, orient: 's', eff: { plus: 5 } },
+        { name: '高泡',       cost: ['koji', 'rice'],          kind: 'atk',   power: 20, orient: 's', eff: { plus: 10 } },
         { name: '真澄の一撃', cost: ['koji', 'koji', 'water'], kind: 'atk',   power: 35, orient: 'g', eff: { self: 10 } },
         { name: 'きじゅん',   cost: ['koji', 'heat'],          kind: 'guard', power: 0,  orient: 's', eff: { heal: 10 } }
       ]
@@ -58,44 +58,44 @@
       energy: ['koji', 'water', 'water', 'heat', 'heat', 'wild'],
       die: ['y', 'y', 'y', 's', 'a', 'g'],
       moves: [
-        { name: '吟醸香',     cost: ['water'],                    kind: 'atk',  power: 10, orient: 'y', eff: { plus: 10 } },
-        { name: '野白式',     cost: ['water', 'heat'],            kind: 'atk',  power: 25, orient: 'y', eff: { plus: 10 } },
-        { name: '熊本の華',   cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 40, orient: 'y', eff: { minus: 1 } },
-        { name: '低温じっくり', cost: ['koji', 'heat'],           kind: 'heal', power: 20, orient: 'y', eff: { healPlus: 10 } }
+        { name: '吟醸香',     cost: ['water'],                    kind: 'atk',  power: 10, orient: 'y', eff: { plus: 5 } },
+        { name: '野白式',     cost: ['water', 'heat'],            kind: 'atk',  power: 15, orient: 'y', eff: { plus: 5 } },
+        { name: '熊本の華',   cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 35, orient: 'y', eff: { minus: 1 } },
+        { name: '低温じっくり', cost: ['koji', 'heat'],           kind: 'heal', power: 30, orient: 'y', eff: { healPlus: 10 } }
       ]
     },
     {
-      id: 'k10', no: '10', emoji: '❄️', name: '協会10号', type: '🫧泡', hp: 105,
+      id: 'k10', no: '10', emoji: '❄️', name: '協会10号', type: '🫧泡', hp: 110,
       energy: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
       die: ['a', 'a', 'a', 's', 'y', 'u'],
       moves: [
-        { name: 'しんしん',     cost: ['water'],                  kind: 'atk',  power: 10, orient: 'a', eff: { plus: 10 } },
-        { name: '雪どけ',       cost: ['water', 'koji'],          kind: 'atk',  power: 20, orient: 'a', eff: { heal: 10 } },
+        { name: 'しんしん',     cost: ['water'],                  kind: 'atk',  power: 10, orient: 'a', eff: { plus: 5 } },
+        { name: '雪どけ',       cost: ['water', 'koji'],          kind: 'atk',  power: 20, orient: 'a', eff: { heal: 5 } },
         { name: '東北の底冷え', cost: ['water', 'water', 'heat'], kind: 'atk',  power: 35, orient: 'a', eff: { minus: 1 } },
-        { name: '冬ごもり',     cost: ['koji', 'heat'],           kind: 'heal', power: 25, orient: 'a', eff: { healPlus: 10 } }
+        { name: '冬ごもり',     cost: ['koji', 'heat'],           kind: 'heal', power: 20, orient: 'a', eff: { healPlus: 10 } }
       ]
     },
     {
-      id: 'k14', no: '14', emoji: '🍏', name: '協会14号', type: '🌸香', hp: 95,
+      id: 'k14', no: '14', emoji: '🍏', name: '協会14号', type: '🌸香', hp: 105,
       energy: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
       die: ['y', 'y', 's', 's', 'a', 'g'],
       moves: [
-        { name: 'すっきり',   cost: ['water'],                   kind: 'atk',  power: 10, orient: 'y', eff: { plus: 10 } },
-        { name: '金沢香',     cost: ['water', 'koji'],           kind: 'atk',  power: 25, orient: 's', eff: { plus: 10 } },
-        { name: '酸なしの美', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 40, orient: 'y', eff: { plus: 10 } },
-        { name: '北陸の水',   cost: ['water', 'heat'],           kind: 'heal', power: 20, orient: 'y', eff: { healPlus: 10 } }
+        { name: 'すっきり',   cost: ['water'],                   kind: 'atk',  power: 10, orient: 'y', eff: { plus: 5 } },
+        { name: '金沢香',     cost: ['water', 'koji'],           kind: 'atk',  power: 20, orient: 's', eff: { plus: 15 } },
+        { name: '酸なしの美', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 30, orient: 'y', eff: { plus: 10 } },
+        { name: '北陸の水',   cost: ['water', 'heat'],           kind: 'heal', power: 20, orient: 'y', eff: { healPlus: 5 } }
       ]
     },
     {
-      id: 'k1801', no: '1801', emoji: '🧬', name: '協会1801号', type: '🌸香', hp: 85,
+      id: 'k1801', no: '1801', emoji: '🧬', name: '協会1801号', type: '🌸香', hp: 95,
       ability: { name: 'ロマン', failSelf: 10 }, // 技が失敗すると自分に10
       energy: ['koji', 'koji', 'water', 'heat', 'heat', 'wild'],
       die: ['g', 'g', 'y', 'y', 's', 'a'],
       moves: [
-        { name: 'セルレニン耐性',   cost: ['koji'],                   kind: 'atk',  power: 15, orient: 'g', eff: { plus: 10 } },
-        { name: 'ハイブリッド',     cost: ['koji', 'water'],          kind: 'atk',  power: 25, orient: 'g', eff: { plus: 15 } },
-        { name: 'りんご香バースト', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 45, orient: 'g', eff: { plus: 15 } },
-        { name: '親ゆずり',         cost: ['koji', 'heat'],           kind: 'heal', power: 15, orient: 's', eff: { healPlus: 10 } }
+        { name: 'セルレニン耐性',   cost: ['koji'],                   kind: 'atk',  power: 10, orient: 'g', eff: { plus: 5 } },
+        { name: 'ハイブリッド',     cost: ['koji', 'water'],          kind: 'atk',  power: 15, orient: 'g', eff: { plus: 5 } },
+        { name: 'りんご香バースト', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 40, orient: 'g', eff: { plus: 10 } },
+        { name: '親ゆずり',         cost: ['koji', 'heat'],           kind: 'heal', power: 30, orient: 's', eff: { healPlus: 10 } }
       ]
     }
   ];
