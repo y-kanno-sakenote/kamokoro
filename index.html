@@ -191,7 +191,6 @@
 
   <!-- 3. バトル -->
   <section id="s-battle" class="screen">
-    <div class="runbar" id="battle-lap"></div>
     <div class="fighter" id="f-foe">
       <div class="em"></div>
       <div class="info"><div class="nm"><span class="n"></span><span class="badge"></span><span class="hpn"></span></div>
@@ -287,7 +286,7 @@
     E.CHARS.forEach(function(c){
       var d = s.dice[c.id], m = s.moves[c.id];
       if (!Array.isArray(d) || d.length !== 4) { ok = false; return; }
-      for (var j = 0; j < 4; j++) if (d[j] !== null && !E.CHIPS[d[j]]) { ok = false; return; }
+      // 未知のチップキー（廃止された2エネ等の旧セーブ）はここで弾かず repairAllSlots に素の面へ戻させる
       if (!Array.isArray(m) || m.length !== 4) { ok = false; return; }
       var seen = {};
       for (var k = 0; k < 4; k++){
@@ -531,14 +530,9 @@
 
   function newBattle(){
     var myId = save.run.charId, foeId = save.run.rest[0];
-    var lap = save.run.lap || 1;
-    // 段2（spec_v3.md §3.1）: 2周目以降、CPUもレアチップを周数-1枚（上限2）持つ
-    var lapChips = lap > 1 ? E.cpuLapChips(E.getChar(foeId), lap) : null;
-    st = E.newState(myId, foeId, null, loadOf(myId), lapChips ? { chips: lapChips } : null); // ★4技は変わらず
+    // CPU周回強化（段2）は実測で効果が無く廃止（spec_v3.md §3.1）。CPUは常に★4技・素の面
+    st = E.newState(myId, foeId, null, loadOf(myId), null);
     myF = st.chars[ME]; foeF = st.chars[FOE];
-    // 実際に置けた枚数を出す（0面にしない安全策で希望枚数より少ないことがある）
-    var lapPut = lapChips ? lapChips.filter(function(k){ return k; }).length : 0;
-    $('battle-lap').textContent = lapPut ? (lap + '周目：相手もレアを' + lapPut + '枚') : '';
     logs = []; busy = (st.turn === FOE);
     [ME, FOE].forEach(function(s){
       res(s).textContent = '';

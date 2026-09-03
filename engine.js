@@ -26,18 +26,14 @@
   };
   var WILD = 'wild';
 
-  // チップ9種（面の値は「エネキーの配列」。2エネ面は1面でそのエネ2個分）
-  var CHIP_ORDER = ['rice', 'koji', 'water', 'heat', 'wild', 'rice2', 'koji2', 'water2', 'heat2'];
+  // チップ5種（面の値は「エネキーの配列」。2026-09-03: 2エネ面は廃止＝レアは✨だけ／spec_v3.md §8案1）
+  var CHIP_ORDER = ['rice', 'koji', 'water', 'heat', 'wild'];
   var CHIPS = {
-    rice:   { face: ['rice'],          emoji: '🌾',   rare: false },
-    koji:   { face: ['koji'],          emoji: '🍚',   rare: false },
-    water:  { face: ['water'],         emoji: '💧',   rare: false },
-    heat:   { face: ['heat'],          emoji: '🔥',   rare: false },
-    wild:   { face: ['wild'],          emoji: '✨',   rare: true },
-    rice2:  { face: ['rice', 'rice'],   emoji: '🌾🌾', rare: true },
-    koji2:  { face: ['koji', 'koji'],   emoji: '🍚🍚', rare: true },
-    water2: { face: ['water', 'water'], emoji: '💧💧', rare: true },
-    heat2:  { face: ['heat', 'heat'],   emoji: '🔥🔥', rare: true }
+    rice:   { face: ['rice'],  emoji: '🌾', rare: false },
+    koji:   { face: ['koji'],  emoji: '🍚', rare: false },
+    water:  { face: ['water'], emoji: '💧', rare: false },
+    heat:   { face: ['heat'],  emoji: '🔥', rare: false },
+    wild:   { face: ['wild'],  emoji: '✨', rare: true }
   };
 
   // 技の種別: atk=攻撃 / heal=回復 / guard=次に受けるダメージ半減
@@ -173,11 +169,11 @@
     return faces.map(function (f) { return f.join('+'); }).join(',');
   }
 
-  // ---- カスタム上限（spec_v3.md §2.1） --------------------------------------
-  // ✨は1ダイスに1面まで／2エネチップは合わせて2面まで。固定2面は数えない。
-  // 素の面の✨（全キャラ slots の1つ）も「カスタム枠の✨」として上限に含める。
-  var LIMIT = { wild: 1, two: 2 };
-  var LIMIT_MSG = { wild: '✨は1面まで', two: '2エネは2面まで' };
+  // ---- カスタム上限（spec_v3.md §2.1・2026-09-03改訂） ----------------------
+  // ✨は1ダイスに1面まで。固定2面は数えない。
+  // 素の面の✨（全キャラ slots の1つ）もこの上限に含める＝チップの✨を積むには素の✨面を外す。
+  var LIMIT = { wild: 1 };
+  var LIMIT_MSG = { wild: '✨は1面まで' };
 
   // スロット i の実効面（チップがあればその面・無ければ素の面）
   function slotFace(char, chips, i) {
@@ -185,19 +181,17 @@
     return (c && CHIPS[c]) ? CHIPS[c].face : [char.slots[i]];
   }
   function countSlots(char, chips) {
-    var wild = 0, two = 0;
+    var wild = 0;
     for (var i = 0; i < char.slots.length; i++) {
       var f = slotFace(char, chips, i);
-      if (f.length > 1) two++;
-      else if (f[0] === WILD) wild++;
+      if (f[0] === WILD) wild++;
     }
-    return { wild: wild, two: two };
+    return { wild: wild };
   }
   // OK/理由を返す。reason は空文字（OK）か LIMIT_MSG のどれか
   function validateSlots(char, chips) {
     var n = countSlots(char, chips);
     if (n.wild > LIMIT.wild) return { ok: false, kind: 'wild', reason: LIMIT_MSG.wild };
-    if (n.two > LIMIT.two) return { ok: false, kind: 'two', reason: LIMIT_MSG.two };
     return { ok: true, kind: null, reason: '' };
   }
   // slot に chipKey（null=はずす）をはめられるか
@@ -206,19 +200,23 @@
     next[slot] = chipKey || null;
     return validateSlots(char, next);
   }
-  // 上限違反の構成を直す（違反している種類のチップを後ろから外す）
-  // 戻り値 { chips: 直した4スロット, removed: [外したチップキー] }
+  // 上限違反・廃止チップの構成を直す（違反／未知のチップを後ろから外す）
+  // 戻り値 { chips: 直した4スロット, removed: [外したチップキー]（在庫に戻せるもののみ） }
   function repairSlots(char, chips) {
     var cur = (chips && chips.length === 4) ? chips.slice() : [null, null, null, null];
-    var removed = [], guard = 0, v;
+    var removed = [], i;
+    // 廃止済み（CHIPSに無い）チップは素の面へ戻す。2026-09-03の2エネ廃止で出る旧セーブ対応
+    for (i = 0; i < cur.length; i++) {
+      if (cur[i] && !CHIPS[cur[i]]) cur[i] = null;
+    }
+    var guard = 0, v;
     while (!(v = validateSlots(char, cur)).ok && guard++ < 8) {
       var done = false;
-      for (var i = cur.length - 1; i >= 0 && !done; i--) {
+      for (i = cur.length - 1; i >= 0 && !done; i--) {
         var c = cur[i];
         if (!c || !CHIPS[c]) continue;
-        var f = CHIPS[c].face;
-        var isWild = (f.length === 1 && f[0] === WILD), isTwo = (f.length > 1);
-        if ((v.kind === 'wild' && isWild) || (v.kind === 'two' && isTwo)) {
+        var isWild = CHIPS[c].face.length === 1 && CHIPS[c].face[0] === WILD;
+        if (v.kind === 'wild' && isWild) {
           removed.push(c); cur[i] = null; done = true;
         }
       }
@@ -227,38 +225,11 @@
     return { chips: cur, removed: removed };
   }
 
-  // ---- CPUの周回強化（spec_v3.md §3.1・段2） -------------------------------
-  // 2周目以降、CPUもレアチップを「周数-1」枚（上限2枚）持たせる。✨→2エネ（寄りエネ優先）の順で、
-  // カスタム4面のうち「その素の面の種類がいま2面以上あるスロット」から置き換える
-  // （置き換えても、どのエネ種も0面にはならない）。上限（✨1面・2エネ2面）に触れる置き換えは飛ばす。
-  function faceTypeCounts(char, chips) {
-    var cnt = {};
-    buildEnergy(char, chips).forEach(function (f) {
-      f.forEach(function (k) { cnt[k] = (cnt[k] || 0) + 1; });
-    });
-    return cnt;
-  }
-  function cpuLapChips(char, lap) {
-    var want = Math.max(0, Math.min(2, (lap || 1) - 1));
-    if (!want) return null;
-    var pref = typeKey(char) === 'awa' ? 'koji2' : 'water2';
-    var order = ['wild', pref].concat(['rice2', 'koji2', 'water2', 'heat2'].filter(function (k) { return k !== pref; }));
-    var chips = [null, null, null, null], put = 0;
-    for (var o = 0; o < order.length && put < want; o++) {
-      var key = order[o];
-      for (var i = 0; i < char.slots.length && put < want; i++) {
-        if (chips[i]) continue; // 装着済みスロットは飛ばす
-        var cnt = faceTypeCounts(char, chips), base = char.slots[i];
-        if ((cnt[base] || 0) < 2) continue;                    // その種を0面にしてしまうなら置き換えない
-        if (!canPlaceChip(char, chips, i, key).ok) continue;   // 上限に触れるなら置き換えない
-        chips[i] = key; put++;
-      }
-    }
-    return put ? chips : null;
-  }
+  // CPUの周回強化（spec_v3.md §3.1・段2）は実測で効果が無く2026-09-03に削除した。
+  // 詳しい経緯は spec_v3.md §3.1 参照。cpuLapChips は廃止（呼び出し側もあわせて削除済み）。
 
   // 出撃するキャラ（＝素のキャラ定義＋選んだ4技＋組み立てたエネコロ6面）
-  // load = { moves:[i,i,i,i], chips:[null,'koji2',null,null] }。省略時は★4技＋素の面
+  // load = { moves:[i,i,i,i], chips:[null,'koji',null,'wild'] }。省略時は★4技＋素の面
   function buildFighter(charOrId, load) {
     var base = typeof charOrId === 'string' ? getChar(charOrId) : charOrId;
     if (base && base.base) base = base.base; // すでに組み立て済みなら素に戻す
@@ -340,8 +311,8 @@
     awa:   ['koji', 'koji', 'koji', 'rice', 'water', 'heat'],
     kaori: ['water', 'water', 'water', 'rice', 'koji', 'heat']
   };
-  // レア表（6面・3勝ごと）
-  var RARE = ['wild', 'wild', 'rice2', 'koji2', 'water2', 'heat2'];
+  // レア枠（3勝ごと）。2エネ廃止（2026-09-03）でレアは✨だけになった
+  var RARE = ['wild'];
 
   function typeKey(char) { return char.type.indexOf('泡') >= 0 ? 'awa' : 'kaori'; }
   function rollDrop(foeChar, rng) { return pick(DROP[typeKey(foeChar)], rng); }
@@ -526,7 +497,6 @@
     LIMIT: LIMIT, LIMIT_MSG: LIMIT_MSG,
     validateSlots: validateSlots, canPlaceChip: canPlaceChip,
     repairSlots: repairSlots, countSlots: countSlots, slotFace: slotFace,
-    cpuLapChips: cpuLapChips,
     getChar: getChar,
     buildEnergy: buildEnergy, buildFighter: buildFighter,
     faceEmoji: faceEmoji, facesSig: facesSig, typeKey: typeKey,
