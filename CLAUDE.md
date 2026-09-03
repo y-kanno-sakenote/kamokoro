@@ -3,7 +3,7 @@
 プラコロ型のサイコロバトルを醸造キャラで組んだ単一HTMLゲーム。2026-09-03新設。
 
 ## 正典
-- ルール・バランス目標: `docs/spec.md`／キャラ定義（HP・ダイス構成・技・とくせい）: `docs/characters.md`（ここが正。CLAUDE.mdに書き足さない）。図鑑ページ: `docs/zukan.html`
+- ルール・バランス目標: `docs/spec.md`（v2の基本ルール）＋ `docs/spec_v3.md`（v3: 技プール7→4・エネコロカスタム・蔵めぐり・上限ルール）／キャラ定義（HP・ダイス構成・技・とくせい）: `docs/characters.md`（ここが正。CLAUDE.mdに書き足さない）。図鑑ページ: `docs/zukan.html`
 - ロジック: `engine.js`（ブラウザとnode両用。index.htmlとsimが同じコードを使う2層方式）
 - 本番: `index.html`（単一ファイル＋engine.js。ブラウザで開くだけで動く）
 - 実測: `sim/sim.js`（`node sim/sim.js` で全組み合わせ大量ロール）
