@@ -40,7 +40,7 @@ h1{font-family:"Dela Gothic One","Hiragino Sans",sans-serif;font-size:34px;line-
 .name{font-family:"Dela Gothic One",sans-serif;font-size:22px;line-height:1.2;margin:2px 0 0}
 .alias{font-size:13px;color:var(--ink2)}
 .type{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;border:1.5px solid currentColor;white-space:nowrap}
-.t-awa{color:var(--mizu)} .t-kaori{color:var(--kin)} .t-tai{color:var(--kome)}
+.t-awa{color:var(--mizu)} .t-kaori{color:var(--kin)} .t-hen{color:var(--kome)}
 .src{font-size:11px;color:var(--ink2);margin:0}
 .kin{font-size:12px;color:var(--ai);margin:0}
 .hp{display:flex;align-items:center;gap:8px;font-family:"DotGothic16",monospace;font-size:13px}
@@ -97,7 +97,7 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
       <li>HP 100スケール（ポケモンっぽい）か、v1の30台スケールか</li>
       <li>v1の「振り直し」は削る（宣言が戦略の芯になるため）。残すなら「エネコロだけ1回」に限定</li>
     </ul>
-    <p class="note">図鑑の一言は sake-kb で裏が取れた事実だけ（出典付き）。協会10号は性格の裏が取れず保留、泡なし7号（701号）と花酵母は控え。数値は全部叩き台。キャラが固まったら engine.js を宣言制に組み直し、sim で36組を実測してから確定します。正典は dev/kamoshi-koro/docs/characters.md。</p>
+    <p class="note">図鑑の一言は sake-kb で裏が取れた事実だけ（出典付き）。協会11号・泡なし7号（701号）・花酵母は控え。数値は全部叩き台。キャラが固まったら engine.js を宣言制に組み直し、sim で36組を実測してから確定します。正典は dev/kamoshi-koro/docs/characters.md。</p>
   </div>
 </div>
 <script>
@@ -116,10 +116,10 @@ var C=[
   desc:'熊本県酒造研究所で育てられ（昭和35年）、野白式吟醸造りとともに吟醸酒を安定させた「熊本酵母」。',src:'醸協 84(12) 1989 p.854／清酒製造技術 p.198',
   ene:'🍚💧💧🔥🔥✨',ori:'yyysag',bias:'メロンは転がる',
   mv:[['吟醸香','💧',10,'y','+10'],['野白式','💧🔥',25,'y','+10'],['熊本の華','💧💧🔥',40,'y','相手の次エネコロ-1'],['低温じっくり','🍚🔥','回復20','y','回復+10']]},
- {no:'11',emo:'🛡️',name:'協会11号',alias:'7号のがんこ変異',type:'耐',tc:'t-tai',hp:120,
-  desc:'協会7号のアルコール耐性変異株（昭和50年）。酒精分が高くても粘る。',src:'清酒製造技術 p.198',kin:'協会7号の変異株',
-  ene:'🌾🌾🍚💧🔥✨',ori:'uussay',bias:'盾は伏せる',
-  mv:[['ねばり','🌾',10,'u','次に受けるダメージ半減'],['アルコール耐性','🌾🔥','15＋半減','u','回復10'],['しぶとい一発','🌾🌾🍚',30,'s','相手の次エネコロ-1'],['完全発酵','🌾🌾🔥',40,'g','自分に10']]},
+ {no:'10',emo:'🧩',name:'協会10号',alias:'ひとつ多い',type:'変',tc:'t-hen',hp:85,
+  desc:'東北の酒造場の醪から分離され（昭和27年）、小川らが育て上げた。染色体がひとつ多い異数体（2n+1）で、10号系だけの「特異バンド」を持つ。',src:'清酒製造技術 p.198／醸協 85(3) 1990 p.189',kin:'子孫に協会13号・MK7（10号系の育種株）',trait:'とくせい「2n+1」: エネコロを常に4個振る（先攻1手目は3個）。そのぶん体力は少ない',
+  ene:'🌾🌾🍚💧🔥✨',ori:'aauusy',bias:'ピースは寝る',
+  mv:[['東北のねばり','🌾',10,'a','+10'],['小川しこみ','🌾🍚',20,'u','相手の次エネコロ-1'],['特異バンド','🌾🌾🍚',35,'a','+10'],['二倍体','🍚🔥','回復20','u','回復+10']]},
  {no:'14',emo:'🍏',name:'協会14号',alias:'金沢のうつくしさ',type:'香',tc:'t-kaori',hp:95,
   desc:'金沢国税局管内で使われていた「金沢酵母」を平成7年度から全国配布。酸が少なく吟醸香が高い。',src:'醸協 90(9) 1995 p.682',
   ene:'🌾🍚💧💧🔥✨',ori:'yyssag',bias:'青りんごは転がるか座る',
@@ -152,7 +152,7 @@ C.forEach(function(c,i){
   var eArr=eneFaces(c.ene);
   btn.addEventListener('click',function(){
     var o=ori[Math.floor(Math.random()*6)];
-    var es=[0,1,2].map(function(){return eArr[Math.floor(Math.random()*6)];});
+    var es=Array.from({length:c.no==='10'?4:3}).map(function(){return eArr[Math.floor(Math.random()*6)];});
     r.innerHTML='<span class="face">'+ORI[o]+'</span>'+es.map(function(f){return '<span class="face">'+f+'</span>';}).join('');
     el.classList.remove('rolling'); void el.offsetWidth; el.classList.add('rolling');
     var hits=c.mv.filter(function(m){return m[3]===o;}).map(function(m){return m[0];});
