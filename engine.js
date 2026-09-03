@@ -173,6 +173,90 @@
     return faces.map(function (f) { return f.join('+'); }).join(',');
   }
 
+  // ---- カスタム上限（spec_v3.md §2.1） --------------------------------------
+  // ✨は1ダイスに1面まで／2エネチップは合わせて2面まで。固定2面は数えない。
+  // 素の面の✨（全キャラ slots の1つ）も「カスタム枠の✨」として上限に含める。
+  var LIMIT = { wild: 1, two: 2 };
+  var LIMIT_MSG = { wild: '✨は1面まで', two: '2エネは2面まで' };
+
+  // スロット i の実効面（チップがあればその面・無ければ素の面）
+  function slotFace(char, chips, i) {
+    var c = chips && chips[i];
+    return (c && CHIPS[c]) ? CHIPS[c].face : [char.slots[i]];
+  }
+  function countSlots(char, chips) {
+    var wild = 0, two = 0;
+    for (var i = 0; i < char.slots.length; i++) {
+      var f = slotFace(char, chips, i);
+      if (f.length > 1) two++;
+      else if (f[0] === WILD) wild++;
+    }
+    return { wild: wild, two: two };
+  }
+  // OK/理由を返す。reason は空文字（OK）か LIMIT_MSG のどれか
+  function validateSlots(char, chips) {
+    var n = countSlots(char, chips);
+    if (n.wild > LIMIT.wild) return { ok: false, kind: 'wild', reason: LIMIT_MSG.wild };
+    if (n.two > LIMIT.two) return { ok: false, kind: 'two', reason: LIMIT_MSG.two };
+    return { ok: true, kind: null, reason: '' };
+  }
+  // slot に chipKey（null=はずす）をはめられるか
+  function canPlaceChip(char, chips, slot, chipKey) {
+    var next = (chips || [null, null, null, null]).slice();
+    next[slot] = chipKey || null;
+    return validateSlots(char, next);
+  }
+  // 上限違反の構成を直す（違反している種類のチップを後ろから外す）
+  // 戻り値 { chips: 直した4スロット, removed: [外したチップキー] }
+  function repairSlots(char, chips) {
+    var cur = (chips && chips.length === 4) ? chips.slice() : [null, null, null, null];
+    var removed = [], guard = 0, v;
+    while (!(v = validateSlots(char, cur)).ok && guard++ < 8) {
+      var done = false;
+      for (var i = cur.length - 1; i >= 0 && !done; i--) {
+        var c = cur[i];
+        if (!c || !CHIPS[c]) continue;
+        var f = CHIPS[c].face;
+        var isWild = (f.length === 1 && f[0] === WILD), isTwo = (f.length > 1);
+        if ((v.kind === 'wild' && isWild) || (v.kind === 'two' && isTwo)) {
+          removed.push(c); cur[i] = null; done = true;
+        }
+      }
+      if (!done) break; // 外せるチップが無い（素の面だけの違反＝起きない）
+    }
+    return { chips: cur, removed: removed };
+  }
+
+  // ---- CPUの周回強化（spec_v3.md §3.1・段2） -------------------------------
+  // 2周目以降、CPUもレアチップを「周数-1」枚（上限2枚）持たせる。✨→2エネ（寄りエネ優先）の順で、
+  // カスタム4面のうち「その素の面の種類がいま2面以上あるスロット」から置き換える
+  // （置き換えても、どのエネ種も0面にはならない）。上限（✨1面・2エネ2面）に触れる置き換えは飛ばす。
+  function faceTypeCounts(char, chips) {
+    var cnt = {};
+    buildEnergy(char, chips).forEach(function (f) {
+      f.forEach(function (k) { cnt[k] = (cnt[k] || 0) + 1; });
+    });
+    return cnt;
+  }
+  function cpuLapChips(char, lap) {
+    var want = Math.max(0, Math.min(2, (lap || 1) - 1));
+    if (!want) return null;
+    var pref = typeKey(char) === 'awa' ? 'koji2' : 'water2';
+    var order = ['wild', pref].concat(['rice2', 'koji2', 'water2', 'heat2'].filter(function (k) { return k !== pref; }));
+    var chips = [null, null, null, null], put = 0;
+    for (var o = 0; o < order.length && put < want; o++) {
+      var key = order[o];
+      for (var i = 0; i < char.slots.length && put < want; i++) {
+        if (chips[i]) continue; // 装着済みスロットは飛ばす
+        var cnt = faceTypeCounts(char, chips), base = char.slots[i];
+        if ((cnt[base] || 0) < 2) continue;                    // その種を0面にしてしまうなら置き換えない
+        if (!canPlaceChip(char, chips, i, key).ok) continue;   // 上限に触れるなら置き換えない
+        chips[i] = key; put++;
+      }
+    }
+    return put ? chips : null;
+  }
+
   // 出撃するキャラ（＝素のキャラ定義＋選んだ4技＋組み立てたエネコロ6面）
   // load = { moves:[i,i,i,i], chips:[null,'koji2',null,null] }。省略時は★4技＋素の面
   function buildFighter(charOrId, load) {
@@ -439,6 +523,10 @@
   return {
     CHARS: CHARS, ORIENT: ORIENT, ENERGY: ENERGY, WILD: WILD,
     CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP, RARE: RARE,
+    LIMIT: LIMIT, LIMIT_MSG: LIMIT_MSG,
+    validateSlots: validateSlots, canPlaceChip: canPlaceChip,
+    repairSlots: repairSlots, countSlots: countSlots, slotFace: slotFace,
+    cpuLapChips: cpuLapChips,
     getChar: getChar,
     buildEnergy: buildEnergy, buildFighter: buildFighter,
     faceEmoji: faceEmoji, facesSig: facesSig, typeKey: typeKey,

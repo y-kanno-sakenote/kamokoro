@@ -8,6 +8,7 @@ var E = require(path.join(__dirname, '..', 'engine.js'));
 
 var N = parseInt(process.argv[2], 10) || 2000;
 var V3 = process.argv.indexOf('--v3') >= 0;
+var LAPS = process.argv.indexOf('--laps') >= 0; // 段2（CPU周回強化）も出す
 var CH = E.CHARS;
 
 // 乱数（seed固定で再現できるようにする）
@@ -90,11 +91,12 @@ function runV2() {
 // =====================================================================
 
 // 蔵めぐり1周ぶん（相手6体すべて）を n 戦ずつ回して勝率を返す
-function runVsAll(charId, load, n, rng) {
+function runVsAll(charId, load, n, rng, lap) {
   var win = 0, tot = 0;
   for (var j = 0; j < CH.length; j++) {
+    var lb = lap ? cpuLoad(CH[j], lap) : null;
     for (var k = 0; k < n; k++) {
-      var r = E.simulateBattle(charId, CH[j].id, rng, { loadA: load });
+      var r = E.simulateBattle(charId, CH[j].id, rng, { loadA: load, loadB: lb ? { chips: lb } : null });
       if (r.winner === 0) win++;
       tot++;
     }
@@ -109,19 +111,36 @@ function moveSets() {
     for (var c = b + 1; c < 7; c++) for (var d = c + 1; d < 7; d++) out.push([a, b, c, d]);
   return out;
 }
-// 9種から重複ありで4枚 = 495通り
-function diceSets() {
-  var K = E.CHIP_ORDER, out = [];
-  for (var a = 0; a < 9; a++) for (var b = a; b < 9; b++)
-    for (var c = b; c < 9; c++) for (var d = c; d < 9; d++) out.push([K[a], K[b], K[c], K[d]]);
+// カスタム4スロット（各スロット = 素の面 or チップ9種）を上限ルール内で全列挙し、
+// 6面が同じになるものは畳む（spec_v3.md §2.1: ✨1面まで／2エネ2面まで・素の面の✨も数える）
+function diceSets(char) {
+  var opts = [null].concat(E.CHIP_ORDER), out = [], seen = {};
+  for (var a = 0; a < 10; a++) for (var b = 0; b < 10; b++)
+    for (var c = 0; c < 10; c++) for (var d = 0; d < 10; d++) {
+      var ch = [opts[a], opts[b], opts[c], opts[d]];
+      if (!E.validateSlots(char, ch).ok) continue;
+      var sig = E.facesSig(E.buildEnergy(char, ch).slice().sort(function (x, y) {
+        return x.join('+') < y.join('+') ? -1 : 1;
+      }));
+      if (seen[sig]) continue;
+      seen[sig] = 1; out.push(ch);
+    }
   return out;
 }
-function chipsLabel(ch) { return ch.map(function (k) { return E.CHIPS[k].emoji; }).join(' '); }
+function chipsLabel(char, ch) {
+  return ch.map(function (k, i) {
+    return k ? E.CHIPS[k].emoji : '(' + E.ENERGY[char.slots[i]].emoji + ')';
+  }).join(' ');
+}
+
+// CPU の周回強化（spec_v3.md §3.1・段2）は engine.js の cpuLapChips に一本化
+// （index.html の実機バトルと同じ置き換えルールを使う）
+function cpuLoad(char, lap) { return E.cpuLapChips(char, lap); }
 function movesLabel(char, mi) { return mi.map(function (i) { return char.moves[i].name; }).join('・'); }
 
 function runV3() {
   var rng = makeRng(20260903);
-  var MS = moveSets(), DS = diceSets();
+  var MS = moveSets();
   var NS = Math.max(60, Math.floor(N / 10));   // 探索用（粗く回す）
   var TOP = 10;
 
@@ -155,38 +174,48 @@ function runV3() {
   console.log('- 探索段階で70%を超えた技セット: 合計 ' + over70m + ' 件（' + NS + '戦の粗い値）');
 
   // ---- 3. ダイス総当たり（495通り・★4技） ----
-  console.log('\n## 3. ダイス総当たり（チップ4枚 495通り × 6体・★4技）');
-  console.log('| キャラ | 最強のダイス | 勝率 |');
-  console.log('|---|---|---|');
+  console.log('\n## 3. ダイス総当たり（上限内のカスタム全通り × 6体・★4技）');
+  console.log('| キャラ | 通り数 | 最強のダイス | 勝率 |');
+  console.log('|---|---|---|---|');
   var topDice = {};
   CH.forEach(function (c) {
+    var DS = diceSets(c);
     var res = DS.map(function (ch) {
       return { ch: ch, w: runVsAll(c.id, { chips: ch }, NS, rng) };
     });
     res.sort(function (x, y) { return y.w - x.w; });
     topDice[c.id] = res.slice(0, TOP);
-    console.log('| ' + c.emoji + c.name + ' | ' + chipsLabel(res[0].ch) + ' | ' + pc(res[0].w) + ' |');
+    console.log('| ' + c.emoji + c.name + ' | ' + DS.length + ' | ' + chipsLabel(c, res[0].ch) + ' | ' + pc(res[0].w) + ' |');
   });
 
-  // ---- 4. レア最強構成 vs 初期構成（上位10×上位10を N 戦で詰める） ----
-  console.log('\n## 4. レア最強構成 vs 初期構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）');
-  console.log('| キャラ | 最強構成（技 / ダイス） | 最強の勝率 | 初期の勝率 | 差 |');
-  console.log('|---|---|---|---|---|');
-  var worst = 0, worstLabel = '';
-  CH.forEach(function (c) {
-    var best = null;
-    topDice[c.id].forEach(function (d) {
-      topMoves[c.id].forEach(function (m) {
-        var w = runVsAll(c.id, { moves: m.mi, chips: d.ch }, N, rng);
-        if (!best || w > best.w) best = { w: w, mi: m.mi, ch: d.ch };
+  // ---- 4. 上限内の最強構成 vs 初期構成（上位10×上位10を N 戦で詰める） ----
+  function pinch(lap, title) {
+    console.log('\n' + title);
+    console.log('| キャラ | 最強構成（技 / ダイス） | 最強の勝率 | 初期の勝率 | 差 |');
+    console.log('|---|---|---|---|---|');
+    var worst = 0, worstLabel = '';
+    CH.forEach(function (c) {
+      var b0 = lap ? runVsAll(c.id, null, N, rng, lap) : base[c.id];
+      var best = null;
+      topDice[c.id].forEach(function (d) {
+        topMoves[c.id].forEach(function (m) {
+          var w = runVsAll(c.id, { moves: m.mi, chips: d.ch }, N, rng, lap);
+          if (!best || w > best.w) best = { w: w, mi: m.mi, ch: d.ch };
+        });
       });
+      if (best.w > worst) { worst = best.w; worstLabel = c.name; }
+      console.log('| ' + c.emoji + c.name + ' | ' + movesLabel(c, best.mi) + ' / ' + chipsLabel(c, best.ch) +
+        ' | ' + pc(best.w) + ' | ' + pc(b0) + ' | +' + ((best.w - b0) * 100).toFixed(1) + 'pt |');
     });
-    if (best.w > worst) { worst = best.w; worstLabel = c.name; }
-    console.log('| ' + c.emoji + c.name + ' | ' + movesLabel(c, best.mi) + ' / ' + chipsLabel(best.ch) +
-      ' | ' + pc(best.w) + ' | ' + pc(base[c.id]) + ' | +' + ((best.w - base[c.id]) * 100).toFixed(1) + 'pt |');
-  });
-  console.log('- **最良構成の勝率（全キャラ最大）: ' + pc(worst) + '**（' + worstLabel + '）／目標は80%以下 → ' +
-    (worst <= 0.80 ? 'OK' : 'NG（spec_v3.md §7の抑え方を検討）'));
+    console.log('- **最良構成の勝率（全キャラ最大）: ' + pc(worst) + '**（' + worstLabel + '）／目標は80%以下 → ' +
+      (worst <= 0.80 ? 'OK' : 'NG（spec_v3.md §7の抑え方を検討）'));
+    return worst;
+  }
+  pinch(0, '## 4. 上限内の最強構成 vs 初期構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）');
+  if (LAPS) {
+    pinch(2, '## 4b. 上限内の最強構成 vs 周回2のCPU（CPUにレア1枚・各 ' + N + ' 戦）');
+    pinch(3, '## 4c. 上限内の最強構成 vs 周回3のCPU（CPUにレア2枚・各 ' + N + ' 戦）');
+  }
 
   // ---- 5. ドロップ期待値（乱数不要の計算） ----
   console.log('\n## 5. ドロップ期待値（1周＝6勝。相手6体は泡3・香3で固定）');

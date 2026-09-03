@@ -191,6 +191,7 @@
 
   <!-- 3. バトル -->
   <section id="s-battle" class="screen">
+    <div class="runbar" id="battle-lap"></div>
     <div class="fighter" id="f-foe">
       <div class="em"></div>
       <div class="info"><div class="nm"><span class="n"></span><span class="badge"></span><span class="hpn"></span></div>
@@ -300,6 +301,7 @@
       if (!r || !E.getChar(r.charId) || !Array.isArray(r.rest) || typeof r.wins !== 'number') return false;
       if (r.wins < 0 || r.wins > LAP || r.rest.length + r.wins !== LAP) return false;
       for (var q = 0; q < r.rest.length; q++) if (!E.getChar(r.rest[q])) return false;
+      if (r.lap != null && (typeof r.lap !== 'number' || r.lap < 1)) return false; // 旧セーブは lap 無し＝1周目扱い
     }
     return true;
   }
@@ -307,7 +309,19 @@
     var s = null;
     try { s = JSON.parse(localStorage.getItem(SKEY)); } catch(e) { s = null; }
     if (!validSave(s)) s = freshSave();   // 壊れていたら丸ごと捨てて初期化
+    repairAllSlots(s);                    // 上限違反（✨1面・2エネ2面）があれば素の面へ戻す
+    if (s.run && s.run.lap == null) s.run.lap = 1; // 旧セーブ互換
     return s;
+  }
+  // 旧セーブ等でカスタム上限を超えている構成があれば直し、外したチップは在庫に戻す
+  function repairAllSlots(s){
+    E.CHARS.forEach(function(c){
+      var r = E.repairSlots(c, s.dice[c.id]);
+      if (r.removed.length){
+        s.dice[c.id] = r.chips;
+        r.removed.forEach(function(k){ s.chips[k] = (s.chips[k] || 0) + 1; });
+      }
+    });
   }
   function writeSave(){
     try { localStorage.setItem(SKEY, JSON.stringify(save)); } catch(e) {}
@@ -365,7 +379,7 @@
   }
 
   function chooseChar(id){
-    if (!save.run) save.run = { charId: id, rest: shuffled(), wins: 0 };
+    if (!save.run) save.run = { charId: id, rest: shuffled(), wins: 0, lap: 1 };
     goPrep();
   }
 
@@ -469,11 +483,14 @@
     box.innerHTML = '';
     E.CHIP_ORDER.forEach(function(k){
       var n = save.chips[k], on = (cur === k);
+      // 上限（✨1面・2エネ2面）に触れる置き換えはグレーにして選ばせない。理由を短く出す
+      var chk = on ? { ok: true } : E.canPlaceChip(prepChar, save.dice[id], slot, k);
+      var disabled = (!n && !on) || !chk.ok;
       var d = document.createElement('div');
-      d.className = 'chip' + (n || on ? '' : ' z') + (on ? ' on' : '');
+      d.className = 'chip' + (disabled ? ' z' : '') + (on ? ' on' : '');
       d.innerHTML = '<div class="v'+(E.CHIPS[k].face.length>1?' two':'')+'">'+E.CHIPS[k].emoji+'</div>'+
-                    '<div class="k">'+n+'まい</div>';
-      if (n) d.onclick = function(){ setChip(k); };
+                    '<div class="k">'+(!chk.ok ? chk.reason : n+'まい')+'</div>';
+      if (!disabled) d.onclick = function(){ setChip(k); };
       box.appendChild(d);
     });
     $('sheet-off').disabled = !cur;
@@ -514,8 +531,14 @@
 
   function newBattle(){
     var myId = save.run.charId, foeId = save.run.rest[0];
-    st = E.newState(myId, foeId, null, loadOf(myId), null); // 相手は★4技＋素の面
+    var lap = save.run.lap || 1;
+    // 段2（spec_v3.md §3.1）: 2周目以降、CPUもレアチップを周数-1枚（上限2）持つ
+    var lapChips = lap > 1 ? E.cpuLapChips(E.getChar(foeId), lap) : null;
+    st = E.newState(myId, foeId, null, loadOf(myId), lapChips ? { chips: lapChips } : null); // ★4技は変わらず
     myF = st.chars[ME]; foeF = st.chars[FOE];
+    // 実際に置けた枚数を出す（0面にしない安全策で希望枚数より少ないことがある）
+    var lapPut = lapChips ? lapChips.filter(function(k){ return k; }).length : 0;
+    $('battle-lap').textContent = lapPut ? (lap + '周目：相手もレアを' + lapPut + '枚') : '';
     logs = []; busy = (st.turn === FOE);
     [ME, FOE].forEach(function(s){
       res(s).textContent = '';
@@ -684,8 +707,8 @@
   }
 
   $('again').onclick = function(){
-    if (!save.run) save.run = { charId: prepChar.id, rest: shuffled(), wins: 0 };  // 負けたあと・もういちど
-    else if (save.run.rest.length === 0) save.run = { charId: save.run.charId, rest: shuffled(), wins: 0 }; // つぎの周
+    if (!save.run) save.run = { charId: prepChar.id, rest: shuffled(), wins: 0, lap: 1 };  // 負けたあと・もういちど（周回はリセット）
+    else if (save.run.rest.length === 0) save.run = { charId: save.run.charId, rest: shuffled(), wins: 0, lap: (save.run.lap || 1) + 1 }; // つぎの周
     goPrep();
   };
   $('toselect').onclick = function(){
