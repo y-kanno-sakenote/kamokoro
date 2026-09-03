@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>醸しコロ</title>
+<style>
+  :root{
+    --bg:#12100e; --panel:#1e1a16; --line:#3a322a;
+    --fg:#f3ece2; --sub:#a99a86; --accent:#e8b04b; --hp:#7fc98a; --hp2:#d96b5a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+    display:flex;justify-content:center;min-height:100vh}
+  #app{width:100%;max-width:430px;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+  .screen{display:none;flex:1;flex-direction:column}
+  .screen.on{display:flex}
+  h1{font-size:26px;margin:8px 0 2px;letter-spacing:.08em}
+  .lead{color:var(--sub);font-size:13px;margin:0 0 14px}
+
+  /* キャラ選択 */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 10px;text-align:center;cursor:pointer}
+  .card:active{transform:scale(.97)}
+  .card .em{font-size:40px;line-height:1.1}
+  .card .nm{font-size:15px;font-weight:700;margin-top:4px}
+  .card .tg{font-size:11px;color:var(--sub);margin-top:3px;min-height:28px}
+  .card .hp{font-size:12px;color:var(--accent);margin-top:4px}
+
+  /* バトル */
+  .fighter{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+  .fighter .em{font-size:38px}
+  .fighter .info{flex:1;min-width:0}
+  .fighter .nm{font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
+  .fighter .nm small{color:var(--sub);font-weight:400;font-size:12px}
+  .bar{height:9px;background:#2c2620;border-radius:5px;margin-top:6px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--hp);transition:width .35s}
+  .bar i.low{background:var(--hp2)}
+  .badge{display:inline-block;font-size:11px;color:var(--accent);margin-top:4px;min-height:14px}
+  .hit{animation:hit .4s}
+  @keyframes hit{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+
+  .stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;padding:14px 0}
+  .movebox{text-align:center}
+  .movebox .lb{font-size:11px;color:var(--sub)}
+  .movebox .mv{font-size:22px;font-weight:700;margin-top:2px}
+  .dice{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .die{width:66px;height:66px;border-radius:16px;background:var(--panel);border:2px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:34px;cursor:pointer}
+  .die.sel{border-color:var(--accent);background:#332a1c}
+  .die.roll{animation:shake .45s}
+  @keyframes shake{0%{transform:rotate(0)}20%{transform:rotate(-14deg) translateY(-6px)}
+    45%{transform:rotate(12deg) translateY(4px)}70%{transform:rotate(-7deg)}100%{transform:rotate(0)}}
+  .hint{font-size:12px;color:var(--sub);min-height:16px;text-align:center}
+
+  .log{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.7;min-height:74px}
+  .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .log div:last-child{color:var(--accent)}
+
+  .btns{display:flex;gap:10px;margin-top:12px}
+  button{flex:1;padding:15px 8px;font-size:16px;font-weight:700;border-radius:12px;border:none;
+    background:var(--accent);color:#1a1409;cursor:pointer;font-family:inherit}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+  button:disabled{opacity:.35}
+
+  /* 結果 */
+  .result{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px}
+  .result .em{font-size:76px}
+  .result .big{font-size:32px;font-weight:700}
+  .result .sub{color:var(--sub);font-size:13px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <section id="s-select" class="screen on">
+    <h1>醸しコロ</h1>
+    <p class="lead">サイコロを振って技を出す。戦略は「振り直し」だけ。</p>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section id="s-battle" class="screen">
+    <div class="fighter" id="f-foe">
+      <div class="em"></div>
+      <div class="info"><div class="nm"><span></span><small></small></div><div class="bar"><i></i></div><div class="badge"></div></div>
+    </div>
+
+    <div class="stage">
+      <div class="movebox"><div class="lb" id="mv-lb"></div><div class="mv" id="mv-nm">—</div></div>
+      <div class="dice" id="dice"></div>
+      <div class="hint" id="hint"></div>
+    </div>
+
+    <div class="log" id="log"></div>
+    <div class="btns" id="btns"></div>
+
+    <div class="fighter" id="f-me" style="margin-top:12px">
+      <div class="em"></div>
+      <div class="info"><div class="nm"><span></span><small></small></div><div class="bar"><i></i></div><div class="badge"></div></div>
+    </div>
+  </section>
+
+  <section id="s-result" class="screen">
+    <div class="result">
+      <div class="em" id="r-em"></div>
+      <div class="big" id="r-big"></div>
+      <div class="sub" id="r-sub"></div>
+    </div>
+    <div class="btns">
+      <button id="b-again">もう一回</button>
+      <button id="b-back" class="ghost">キャラを選び直す</button>
+    </div>
+  </section>
+
+</div>
+
+<script src="engine.js"></script>
+<script>
+(function(){
+  'use strict';
+  var E = window.KamoshiEngine;
+  var $ = function(id){ return document.getElementById(id); };
+
+  var st=null, meIdx=0, foeIdx=1, logs=[], turn=null, sel=[], busy=false;
+
+  // ---- キャラ選択 ----
+  E.CHARS.forEach(function(c){
+    var d=document.createElement('div');
+    d.className='card';
+    d.innerHTML='<div class="em">'+c.emoji+'</div><div class="nm">'+c.name+'</div>'+
+                '<div class="tg">'+c.tag+'</div><div class="hp">たいりょく '+c.hp+'</div>';
+    d.onclick=function(){ start(c); };
+    $('cards').appendChild(d);
+  });
+
+  function show(id){
+    ['s-select','s-battle','s-result'].forEach(function(x){ $(x).classList.toggle('on', x===id); });
+  }
+
+  var lastMine=null;
+  function start(mine){
+    lastMine = mine;
+    var foe = E.CHARS[Math.floor(Math.random()*E.CHARS.length)];
+    var first = Math.random()<0.5 ? 0 : 1;   // 先攻はランダム
+    st = E.newState(mine, foe, first);
+    meIdx=0; foeIdx=1; logs=[]; turn=null; sel=[]; busy=false;
+    paint(); setDice([],[]); $('mv-nm').textContent='—'; $('mv-lb').textContent='';
+    show('s-battle');
+    pushLog(first===0 ? 'あなたの先攻！' : foe.name+'の先攻！');
+    if(first===0) phaseReady(); else setTimeout(cpuTurn, 900);
+  }
+
+  // ---- 描画 ----
+  function paintSide(el, side, shake){
+    var c=side.char;
+    el.querySelector('.em').textContent=c.emoji;
+    el.querySelector('.nm span').textContent=c.name;
+    el.querySelector('.nm small').textContent=Math.max(0,side.hp)+' / '+side.maxHp;
+    var pct=Math.max(0,side.hp)/side.maxHp*100;
+    var bar=el.querySelector('.bar i');
+    bar.style.width=pct+'%';
+    bar.classList.toggle('low', pct<=30);
+    var b=[];
+    if(side.barrier) b.push('🛡 まもり');
+    if(side.extraDie) b.push('✚ ダイス4個');
+    el.querySelector('.badge').textContent=b.join('　');
+    if(shake){ el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
+  }
+  function paint(shakeSide){
+    paintSide($('f-me'), st.sides[meIdx], shakeSide==='me');
+    paintSide($('f-foe'), st.sides[foeIdx], shakeSide==='foe');
+  }
+  function pushLog(t){
+    logs.push(t); if(logs.length>3) logs.shift();
+    $('log').innerHTML = logs.map(function(x){ return '<div>'+x+'</div>'; }).join('');
+  }
+  function setDice(faces, tappable){
+    var box=$('dice'); box.innerHTML='';
+    faces.forEach(function(f,i){
+      var d=document.createElement('div');
+      d.className='die roll'+(sel[i]?' sel':'');
+      d.textContent=f;
+      if(tappable){ d.onclick=function(){ sel[i]=!sel[i]; d.classList.toggle('sel', sel[i]); }; }
+      box.appendChild(d);
+    });
+  }
+  function setBtns(list){
+    var b=$('btns'); b.innerHTML='';
+    list.forEach(function(o){
+      var el=document.createElement('button');
+      el.textContent=o.label; if(o.ghost) el.className='ghost';
+      el.onclick=o.fn; b.appendChild(el);
+    });
+  }
+
+  // ---- 自分のターン ----
+  function phaseReady(){
+    busy=false;
+    $('mv-lb').textContent=''; $('mv-nm').textContent='—';
+    setDice([],false); $('hint').textContent='';
+    setBtns([{label:'振る', fn:doRoll}]);
+  }
+
+  function doRoll(){
+    if(busy) return; busy=true;
+    var me=st.sides[meIdx];
+    var n = me.extraDie ? 4 : 3;
+    me.extraDie=false;
+    turn={ moveIdx:E.rollCharDie(me.char), faces:E.rollEnergy(n) };
+    sel=new Array(n).fill(false);
+    var mv=me.char.moves[turn.moveIdx];
+    $('mv-lb').textContent='この手番の技';
+    $('mv-nm').textContent=mv.name+'　'+mv.cost.join('');
+    setDice(turn.faces, true);
+    $('hint').textContent='振り直したいダイスをタップ';
+    paint();
+    setBtns([
+      {label:'振り直す', fn:doReroll},
+      {label:'このまま', ghost:true, fn:doResolveMine}
+    ]);
+    busy=false;
+  }
+
+  function doReroll(){
+    if(busy) return;
+    if(!sel.some(Boolean)){ $('hint').textContent='振り直すダイスを選んでね'; return; }
+    busy=true;
+    turn.faces = turn.faces.map(function(f,i){ return sel[i] ? E.rollEnergyDie() : f; });
+    sel = new Array(turn.faces.length).fill(false);
+    setDice(turn.faces, false);
+    $('hint').textContent='';
+    setTimeout(doResolveMine, 500);
+  }
+
+  function doResolveMine(){
+    busy=true;
+    setDice(turn.faces, false);
+    setBtns([]);
+    var me=st.sides[meIdx], foe=st.sides[foeIdx];
+    var res=E.resolveMove(me.char, turn.moveIdx, turn.faces, {attacker:me, defender:foe});
+    logTurn(me.char.name, res);
+    paint('foe');
+    if(!checkEnd()) setTimeout(cpuTurn, 1000);
+  }
+
+  // ---- 相手のターン（自動進行）----
+  function cpuTurn(){
+    var foe=st.sides[foeIdx], me=st.sides[meIdx];
+    var n = foe.extraDie ? 4 : 3;
+    foe.extraDie=false;
+    var moveIdx=E.rollCharDie(foe.char);
+    var faces=E.rollEnergy(n);
+    var mv=foe.char.moves[moveIdx];
+    sel=new Array(n).fill(false);
+    $('mv-lb').textContent=foe.char.name+'の技';
+    $('mv-nm').textContent=mv.name+'　'+mv.cost.join('');
+    setDice(faces,false);
+    $('hint').textContent='';
+    paint();
+
+    setTimeout(function(){
+      var keep=E.cpuKeepMask(foe.char, moveIdx, faces);
+      var after=faces.map(function(f,i){ return keep[i] ? f : E.rollEnergyDie(); });
+      var rerolled = keep.some(function(k){ return !k; });
+      if(rerolled){ setDice(after,false); $('hint').textContent='振り直した'; }
+      setTimeout(function(){
+        $('hint').textContent='';
+        var res=E.resolveMove(foe.char, moveIdx, after, {attacker:foe, defender:me});
+        logTurn(foe.char.name, res);
+        paint('me');
+        if(!checkEnd()) phaseReady();
+      }, rerolled ? 900 : 300);
+    }, 900);
+  }
+
+  function logTurn(who, res){
+    var t;
+    if(res.shizuku){
+      t = who+'は うまく醸せず「しずく」… '+res.damage;
+      if(res.selfDamage) t += '（自分にも '+res.selfDamage+'）';
+    }else{
+      t = who+'の「'+res.moveName+'」！ '+res.damage;
+      if(res.halved) t += '（まもりで半分）';
+      if(res.effect==='extraDie') t += '（次は4個）';
+      if(res.effect==='barrier') t += '（まもり）';
+    }
+    pushLog(t);
+  }
+
+  function checkEnd(){
+    var me=st.sides[meIdx], foe=st.sides[foeIdx];
+    if(foe.hp<=0 || me.hp<=0){
+      // 攻撃側のダメージが先に通るので、相手が0なら勝ち（雄町の自傷で相打ちでも勝ち）
+      var win = foe.hp<=0;
+      setTimeout(function(){ finish(win); }, 800);
+      return true;
+    }
+    return false;
+  }
+
+  function finish(win){
+    var me=st.sides[meIdx], foe=st.sides[foeIdx];
+    $('r-em').textContent = win ? '🎉' : '💀';
+    $('r-big').textContent = win ? 'いい酒ができた！' : '腐造…';
+    $('r-sub').textContent = me.char.emoji+me.char.name+'　vs　'+foe.char.emoji+foe.char.name;
+    show('s-result');
+  }
+
+  $('b-again').onclick=function(){ start(lastMine); };
+  $('b-back').onclick=function(){ show('s-select'); };
+})();
+</script>
+</body>
+</html>
