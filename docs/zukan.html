@@ -116,10 +116,10 @@ var C=[
   desc:'熊本県酒造研究所で育てられ（昭和35年）、野白式吟醸造りとともに吟醸酒を安定させた「熊本酵母」。',src:'醸協 84(12) 1989 p.854／清酒製造技術 p.198',
   ene:'🍚💧💧🔥🔥✨',ori:'yyysag',bias:'メロンは転がる',
   mv:[['吟醸香','💧',10,'y','+10'],['野白式','💧🔥',25,'y','+10'],['熊本の華','💧💧🔥',40,'y','相手の次エネコロ-1'],['低温じっくり','🍚🔥','回復20','y','回復+10']]},
- {no:'10',emo:'🧩',name:'協会10号',alias:'ひとつ多い',type:'変',tc:'t-hen',hp:85,
-  desc:'東北の酒造場の醪から分離され（昭和27年）、小川らが育て上げた。染色体がひとつ多い異数体（2n+1）で、10号系だけの「特異バンド」を持つ。',src:'清酒製造技術 p.198／醸協 85(3) 1990 p.189',kin:'子孫に協会13号・MK7（10号系の育種株）',trait:'とくせい「2n+1」: エネコロを常に4個振る（先攻1手目は3個）。そのぶん体力は少ない',
-  ene:'🌾🌾🍚💧🔥✨',ori:'aauusy',bias:'ピースは寝る',
-  mv:[['東北のねばり','🌾',10,'a','+10'],['小川しこみ','🌾🍚',20,'u','相手の次エネコロ-1'],['特異バンド','🌾🌾🍚',35,'a','+10'],['二倍体','🍚🔥','回復20','u','回復+10']]},
+ {no:'10',emo:'❄️',name:'協会10号',alias:'東北のじっくり屋',type:'泡',tc:'t-awa',hp:105,
+  desc:'東北の酒造場の醪から分離され（昭和27年）、小川らが育て上げた。',src:'清酒製造技術 p.198',
+  ene:'🌾🍚💧💧🔥✨',ori:'aaasyu',bias:'雪の結晶は寝る',
+  mv:[['しんしん','💧',10,'a','+10'],['雪どけ','💧🍚',20,'a','回復10'],['東北の底冷え','💧💧🔥',35,'a','相手の次エネコロ-1'],['冬ごもり','🍚🔥','回復25','a','回復+10']]},
  {no:'14',emo:'🍏',name:'協会14号',alias:'金沢のうつくしさ',type:'香',tc:'t-kaori',hp:95,
   desc:'金沢国税局管内で使われていた「金沢酵母」を平成7年度から全国配布。酸が少なく吟醸香が高い。',src:'醸協 90(9) 1995 p.682',
   ene:'🌾🍚💧💧🔥✨',ori:'yyssag',bias:'青りんごは転がるか座る',
@@ -152,7 +152,7 @@ C.forEach(function(c,i){
   var eArr=eneFaces(c.ene);
   btn.addEventListener('click',function(){
     var o=ori[Math.floor(Math.random()*6)];
-    var es=Array.from({length:c.no==='10'?4:3}).map(function(){return eArr[Math.floor(Math.random()*6)];});
+    var es=Array.from({length:3}).map(function(){return eArr[Math.floor(Math.random()*6)];});
     r.innerHTML='<span class="face">'+ORI[o]+'</span>'+es.map(function(f){return '<span class="face">'+f+'</span>';}).join('');
     el.classList.remove('rolling'); void el.offsetWidth; el.classList.add('rolling');
     var hits=c.mv.filter(function(m){return m[3]===o;}).map(function(m){return m[0];});
