@@ -40,7 +40,9 @@ h1{font-family:"Dela Gothic One","Hiragino Sans",sans-serif;font-size:34px;line-
 .name{font-family:"Dela Gothic One",sans-serif;font-size:22px;line-height:1.2;margin:2px 0 0}
 .alias{font-size:13px;color:var(--ink2)}
 .type{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;border:1.5px solid currentColor;white-space:nowrap}
-.t-kin{color:var(--kin)} .t-kome{color:var(--kome)} .t-mizu{color:var(--mizu)}
+.t-awa{color:var(--mizu)} .t-kaori{color:var(--kin)} .t-tai{color:var(--kome)}
+.src{font-size:11px;color:var(--ink2);margin:0}
+.kin{font-size:12px;color:var(--ai);margin:0}
 .hp{display:flex;align-items:center;gap:8px;font-family:"DotGothic16",monospace;font-size:13px}
 .hp i{flex:1;height:8px;background:var(--ai-soft);border-radius:4px;overflow:hidden;display:block}
 .hp i b{display:block;height:100%;background:var(--ai)}
@@ -74,9 +76,9 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
 @media (max-width:640px){.grid,.flow{grid-template-columns:1fr}.head{grid-template-columns:52px 1fr}.type{grid-column:2}.emo{font-size:40px}}
 </style>
 <div class="wrap">
-  <div class="eyebrow">KAMOSHI-KORO ZUKAN v0</div>
+  <div class="eyebrow">KAMOSHI-KORO ZUKAN v1 · きょうかい酵母</div>
   <h1>醸しコロ図鑑</h1>
-  <p class="lead">醸造キャラ6体。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、キャラコロの向きが技の指定と合えば「向き効果」が乗る。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。</p>
+  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、キャラコロの向きが技の指定と合えば「向き効果」が乗る。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。</p>
 
   <div class="flow">
     <div><b>1 狙う</b><p>技を1つ選ぶ。前の手番に使った技は選べない</p></div>
@@ -90,42 +92,42 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
   <div class="open">
     <h2>決めてほしいこと</h2>
     <ul>
-      <li>二つ名（まじめ酵母 など）をゲーム画面にも出すか、名前だけにするか</li>
+      <li>二つ名（さいこさん など）をゲーム画面にも出すか、名前だけにするか</li>
       <li>技4つのうち「支え技」（回復・守り）は要るか。無いと殴り合いだけ、あると「今回は守る」の判断が生まれる</li>
       <li>HP 100スケール（ポケモンっぽい）か、v1の30台スケールか</li>
       <li>v1の「振り直し」は削る（宣言が戦略の芯になるため）。残すなら「エネコロだけ1回」に限定</li>
     </ul>
-    <p class="note">数値は全部叩き台。キャラが固まったら engine.js を宣言制に組み直し、sim で36組を実測してから確定します。正典は dev/kamoshi-koro/docs/characters.md。</p>
+    <p class="note">図鑑の一言は sake-kb で裏が取れた事実だけ（出典付き）。協会10号は性格の裏が取れず保留、泡なし7号（701号）と花酵母は控え。数値は全部叩き台。キャラが固まったら engine.js を宣言制に組み直し、sim で36組を実測してから確定します。正典は dev/kamoshi-koro/docs/characters.md。</p>
   </div>
 </div>
 <script>
 var ORI={s:'🧍',a:'😴',u:'🙃',y:'↔️',g:'🤸'};
 var ON={s:'立ち',a:'あおむけ',u:'うつぶせ',y:'横向き',g:'逆立ち'};
 var C=[
- {no:'01',emo:'🍶',name:'協会7号',alias:'まじめ酵母',type:'菌',tc:'t-kin',hp:100,
-  desc:'長野生まれの優等生。派手さはないが、どんな仕込みでもコツコツ泡を立てる。',
-  ene:'🍄🍄🍄💧🔥✨',ori:'ssauyg',bias:'瓶だから立ちやすい',
-  mv:[['ぷくぷく','🍄',10,'s','+10'],['泡立ち','🍄💧',20,'s','相手の次エネコロ-1'],['高泡','🍄🍄💧',35,'g','自分に10（泡が溢れた）'],['じっくり醗酵','🍄🔥','回復20','s','回復+10']]},
- {no:'02',emo:'🍎',name:'協会9号',alias:'はなやか酵母',type:'菌',tc:'t-kin',hp:90,
-  desc:'熊本生まれの香りの女王。打たれ弱いが、香りが爆発すると手がつけられない。',
-  ene:'🍄🍄💧💧🔥✨',ori:'yyysag',bias:'りんごだから転がる',
-  mv:[['りんごの香り','🍄',10,'y','+10'],['吟醸のかおり','🍄💧',25,'y','+10'],['メロン爆発','🍄💧💧',40,'y','相手の次エネコロ-1'],['香りのベール','💧🔥','半減','y','回復10']]},
- {no:'03',emo:'🌸',name:'黄麹',alias:'しこみ麹',type:'菌',tc:'t-kin',hp:100,
-  desc:'米に花を咲かせる仕込みの職人。自分では殴らないが、次の一手を太らせる。',
-  ene:'🍄🍄🌾🌾🔥✨',ori:'aauusy',bias:'花びらだから寝る',
-  mv:[['糖化','🍄',10,'a','自分の次エネコロ+1'],['破精込み','🍄🌾',20,'u','+10'],['突き破精','🍄🍄🌾',30,'a','相手の次エネコロ-1'],['甘い誘惑','🌾🔥','回復20','a','回復+10']]},
- {no:'04',emo:'🥛',name:'乳酸菌',alias:'すっぱ守り',type:'水',tc:'t-mizu',hp:110,
-  desc:'生酛の番人。酸っぱさで雑菌を寄せつけない。守ってから殴るのが流儀。',
-  ene:'💧💧💧🍄🔥✨',ori:'ssauyy',bias:'コップだから立つか転がる',
-  mv:[['すっぱ','💧',10,'s','次に受けるダメージ半減'],['乳酸バリア','💧🔥','10＋半減','s','回復10'],['雑菌一掃','💧💧🍄',30,'s','相手の次エネコロ-1'],['酸っぱ地獄','💧💧💧',40,'g','自分に10（酸っぱすぎた）']]},
- {no:'05',emo:'🌾',name:'山田錦',alias:'酒米の王',type:'米',tc:'t-kome',hp:120,
-  desc:'兵庫の大粒。とにかく体力がある。立たない。寝ているだけで強い。',
-  ene:'🌾🌾🌾💧🔥✨',ori:'aauuyg',bias:'米粒は立たない',
-  mv:[['心白','🌾',10,'a','+10'],['大粒','🌾🌾',25,'u','+10'],['酒米の王','🌾🌾🌾',40,'a','+10'],['稲穂ゆらり','🌾💧','回復20','y','回復+10']]},
- {no:'06',emo:'🔥',name:'雄町',alias:'とろけるロマン',type:'米',tc:'t-kome',hp:90,
-  desc:'岡山の暴れ米。溶けやすく、当たれば最強、外せば自分が溶ける。逆立ちが得意な唯一のキャラ。',
-  ene:'🌾🌾🔥🔥🔥✨',ori:'ggsyau',bias:'炎だから不安定',trait:'とくせい「溶けすぎ」: 技が失敗すると自分に10',
-  mv:[['とろける','🔥',15,'g','+10'],['どろどろ','🔥🔥',25,'g','+15'],['オマチスト','🌾🔥🔥',45,'g','+15'],['溶けすぎ注意','🌾🌾','回復15','s','回復+10']]}
+ {no:'6',emo:'🏺',name:'協会6号',alias:'さいこさん',type:'泡',tc:'t-awa',hp:110,
+  desc:'秋田・新政酒造の醪から生まれた（昭和10年）、頒布酵母の最古参。TTC染色で赤く染まる。',src:'清酒製造技術 p.196, p.198',
+  ene:'🌾🌾🍚💧🔥✨',ori:'ssauyg',bias:'壺は立つ',
+  mv:[['こつこつ','🌾',10,'s','+10'],['あかぞめ','🌾🍚',20,'s','相手の次エネコロ-1'],['秋田の底力','🌾🌾🍚',35,'a','+10'],['ご長寿','🍚🔥','回復20','s','回復+10']]},
+ {no:'7',emo:'🍶',name:'協会7号',alias:'きじゅんの男',type:'泡',tc:'t-awa',hp:100,
+  desc:'長野・宮坂醸造「真澄」の醪から生まれた（昭和21年）。泡なし酵母を探す研究で、ずっと「比較の基準」にされ続けた実力派。',src:'清酒製造技術 p.198／醸協 101(9) 2006 p.662',
+  ene:'🌾🍚🍚💧🔥✨',ori:'sssayg',bias:'徳利は安定',
+  mv:[['ぷくぷく','🍚',10,'s','+10'],['高泡','🍚🌾',25,'s','+10'],['真澄の一撃','🍚🍚💧',35,'g','自分に10（泡が溢れた）'],['きじゅん','🍚🔥','半減','s','回復10']]},
+ {no:'9',emo:'🍈',name:'協会9号',alias:'吟醸のたつじん',type:'香',tc:'t-kaori',hp:90,
+  desc:'熊本県酒造研究所で育てられ（昭和35年）、野白式吟醸造りとともに吟醸酒を安定させた「熊本酵母」。',src:'醸協 84(12) 1989 p.854／清酒製造技術 p.198',
+  ene:'🍚💧💧🔥🔥✨',ori:'yyysag',bias:'メロンは転がる',
+  mv:[['吟醸香','💧',10,'y','+10'],['野白式','💧🔥',25,'y','+10'],['熊本の華','💧💧🔥',40,'y','相手の次エネコロ-1'],['低温じっくり','🍚🔥','回復20','y','回復+10']]},
+ {no:'11',emo:'🛡️',name:'協会11号',alias:'7号のがんこ変異',type:'耐',tc:'t-tai',hp:120,
+  desc:'協会7号のアルコール耐性変異株（昭和50年）。酒精分が高くても粘る。',src:'清酒製造技術 p.198',kin:'協会7号の変異株',
+  ene:'🌾🌾🍚💧🔥✨',ori:'uussay',bias:'盾は伏せる',
+  mv:[['ねばり','🌾',10,'u','次に受けるダメージ半減'],['アルコール耐性','🌾🔥','15＋半減','u','回復10'],['しぶとい一発','🌾🌾🍚',30,'s','相手の次エネコロ-1'],['完全発酵','🌾🌾🔥',40,'g','自分に10']]},
+ {no:'14',emo:'🍏',name:'協会14号',alias:'金沢のうつくしさ',type:'香',tc:'t-kaori',hp:95,
+  desc:'金沢国税局管内で使われていた「金沢酵母」を平成7年度から全国配布。酸が少なく吟醸香が高い。',src:'醸協 90(9) 1995 p.682',
+  ene:'🌾🍚💧💧🔥✨',ori:'yyssag',bias:'青りんごは転がるか座る',
+  mv:[['すっきり','💧',10,'y','+10'],['金沢香','💧🍚',25,'s','+10'],['酸なしの美','💧💧🍚',40,'y','+10'],['北陸の水','💧🔥','回復20','y','回復+10']]},
+ {no:'1801',emo:'🧬',name:'協会1801号',alias:'ラボ生まれのハイブリッド',type:'香',tc:'t-kaori',hp:85,
+  desc:'1601号×1701号の交雑株。セルレニン耐性でりんごの香り（カプロン酸エチル）を大量に作る。有機酸が少なく、イソアミルアルコールは協会酵母で最少。',src:'醸協 101(12) 2006 p.913, p.918',kin:'1601号 × 1701号',trait:'とくせい「ロマン」: 技が失敗すると自分に10',
+  ene:'🍚🍚💧🔥🔥✨',ori:'ggyysa',bias:'らせんは不安定',
+  mv:[['セルレニン耐性','🍚',15,'g','+10'],['ハイブリッド','🍚💧',25,'g','+15'],['りんご香バースト','🍚💧🔥',45,'g','+15'],['親ゆずり','🍚🔥','回復15','s','回復+10']]}
 ];
 function seg(s){return Array.from(s).filter(function(ch){return ch.trim()!=='' && ch!=='️';}).map(function(ch){return ch;});}
 function faces(str,cls){return '<div class="faces">'+seg(str).map(function(f){return '<span class="face '+(cls||'')+'">'+f+'</span>';}).join('')+'</div>';}
@@ -138,7 +140,7 @@ C.forEach(function(c,i){
   el.innerHTML=
    '<div class="head"><div class="emo">'+c.emo+'</div><div><div class="no">No.'+c.no+'</div><h2 class="name">'+c.name+'</h2><div class="alias">'+c.alias+'</div></div><span class="type '+c.tc+'">'+c.type+'タイプ</span></div>'+
    '<div class="hp">HP '+c.hp+'<i><b style="width:'+(c.hp/120*100)+'%"></b></i></div>'+
-   '<p class="desc">'+c.desc+'</p>'+(c.trait?'<p class="trait">'+c.trait+'</p>':'')+
+   '<p class="desc">'+c.desc+'</p><p class="src">出典: '+c.src+'</p>'+(c.kin?'<p class="kin">血縁: '+c.kin+'</p>':'')+(c.trait?'<p class="trait">'+c.trait+'</p>':'')+
    '<div class="dice"><span>エネコロ</span><div class="faces" data-e>'+eneFaces(c.ene).map(function(f){return '<span class="face">'+f+'</span>';}).join('')+'</div>'+
    '<span>キャラコロ</span><div><div class="faces" data-o>'+ori.map(function(o){return '<span class="face" title="'+ON[o]+'">'+ORI[o]+'</span>';}).join('')+'</div><div style="font-size:11px;margin-top:3px">'+c.bias+'</div></div></div>'+
    '<table><thead><tr><th>技</th><th>コスト</th><th style="text-align:right">威力</th><th>向き → 効果</th></tr></thead><tbody>'+
