@@ -13,23 +13,76 @@
   body{margin:0;background:var(--bg);color:var(--fg);
     font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
     display:flex;justify-content:center;min-height:100vh}
-  #app{width:100%;max-width:430px;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+  #app{width:100%;max-width:430px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
   .screen{display:none;flex:1;flex-direction:column}
   .screen.on{display:flex}
-  h1{font-size:26px;margin:8px 0 2px;letter-spacing:.08em}
-  .lead{color:var(--sub);font-size:13px;margin:0 0 14px}
+  h1{font-size:26px;margin:6px 0 2px;letter-spacing:.08em}
+  .lead{color:var(--sub);font-size:13px;margin:0 0 10px}
+  /* 蔵めぐりの進み（●○） */
+  .runbar{font-size:13px;color:var(--accent);margin:0 0 8px;letter-spacing:.12em;min-height:18px}
+  .runbar b{font-weight:400;color:var(--sub);letter-spacing:0;margin-left:6px}
 
   /* 1. キャラ選択 */
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 10px;text-align:center;cursor:pointer}
   .card:active{transform:scale(.97)}
+  .card.off{opacity:.3;cursor:default}
   .card .em{font-size:40px;line-height:1.1}
   .card .nm{font-size:15px;font-weight:700;margin-top:4px}
   .card .tp{font-size:11px;color:var(--sub);margin-top:3px}
   .card .hp{font-size:12px;color:var(--accent);margin-top:4px}
   .card .fc{font-size:11px;color:var(--sub);margin-top:5px;line-height:1.5;letter-spacing:.03em}
+  .card .go{font-size:11px;color:var(--accent);margin-top:4px}
 
-  /* 2. バトル */
+  /* 2. 準備 */
+  .prow{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin-bottom:6px}
+  .prow .em{font-size:24px}
+  .prow .hp{font-weight:400;font-size:12px;color:var(--accent)}
+  .ttl{font-size:11px;color:var(--sub);margin:8px 0 4px}
+  .ttl span{color:var(--accent)}
+  .pool{display:flex;flex-direction:column;gap:4px}
+  .pv{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
+    border-radius:9px;padding:5px 8px;cursor:pointer;line-height:1.25}
+  .pv:active{transform:scale(.99)}
+  .pv.sel{border-color:var(--accent);background:#2a2318}
+  .pv .g{font-size:9px;color:var(--sub);width:30px;flex:none;text-align:center}
+  .pv.sel .g{color:var(--accent)}
+  .pv .n{font-size:13px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pv .c{font-size:12px;color:var(--sub);white-space:nowrap}
+  .pv .c b{color:var(--fg);margin-left:3px}
+  .pv .o{font-size:11px;color:var(--accent);white-space:nowrap;width:76px;flex:none;text-align:right}
+  .pv .wn{font-size:9px}
+
+  .facebar{display:flex;gap:5px;margin-top:2px}
+  .fs{flex:1;height:44px;border-radius:10px;background:var(--panel);border:2px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
+  .fs .v{font-size:21px;line-height:1}
+  .fs .v.two{font-size:15px;letter-spacing:-1px}
+  .fs.lock{opacity:.45;cursor:default}
+  .fs.chip{border-color:var(--accent)}
+  .fs i{position:absolute;top:1px;right:3px;font-size:8px;font-style:normal;color:var(--sub)}
+  .inv{display:flex;flex-wrap:wrap;gap:4px 9px;font-size:11px;color:var(--sub);margin-top:6px;line-height:1.5}
+  .inv span.z{opacity:.35}
+  .inv b{color:var(--fg);font-weight:700}
+
+  /* チップ選択シート */
+  .sheet{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9;
+    align-items:flex-end;justify-content:center}
+  .sheet.on{display:flex}
+  .sheetin{width:100%;max-width:430px;background:var(--panel);border-top:1px solid var(--line);
+    border-radius:16px 16px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
+  .sheetin h3{font-size:14px;margin:0 0 10px;font-weight:700}
+  .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .chip{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 2px;text-align:center;cursor:pointer}
+  .chip .v{font-size:19px;line-height:1.1}
+  .chip .v.two{font-size:14px;letter-spacing:-1px}
+  .chip .k{font-size:10px;color:var(--sub);margin-top:2px}
+  .chip.z{opacity:.3;cursor:default}
+  .chip.on{border-color:var(--accent)}
+  .sheetbtns{display:flex;gap:8px;margin-top:10px}
+  .sheetbtns .btn{margin-top:0;max-width:none}
+
+  /* 3. バトル */
   .fighter{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
   .fighter .em{font-size:38px}
   .fighter .info{flex:1;min-width:0}
@@ -57,11 +110,13 @@
     display:flex;align-items:center;justify-content:center}
   .die.big{width:76px;height:76px;font-size:40px;border-color:var(--accent)}
   .die.en{width:46px;height:46px;border-radius:11px;font-size:24px}
+  .die.en.two{font-size:16px;letter-spacing:-1px}
   .die.off{opacity:.22}
   /* 相手側は一回り小さく */
   .stage.foe .die{border-width:2px}
   .stage.foe .die.big{width:60px;height:60px;font-size:32px}
   .stage.foe .die.en{width:37px;height:37px;border-radius:9px;font-size:19px}
+  .stage.foe .die.en.two{font-size:13px}
   /* 手番でない側は薄く残す（直前の出目は消さない） */
   .stage.dim .die{opacity:.4}
   .stage.dim .die.off{opacity:.12}
@@ -77,7 +132,7 @@
   .result{font-size:17px;font-weight:700;min-height:22px;line-height:1.3;text-align:center}
   .stage.foe .result{font-size:14px;min-height:19px}
   /* 自分・相手の面構成（常時表示・確率は出さない） */
-  .faces{font-size:12px;color:var(--sub);line-height:1.25;white-space:nowrap;letter-spacing:.04em}
+  .faces{font-size:12px;color:var(--sub);line-height:1.25;white-space:nowrap;letter-spacing:.02em}
   .stage.foe .faces{font-size:11px;opacity:.8}
 
   /* 技ボタン: 技名 / コスト 威力　向き→おまけ の2段 */
@@ -87,9 +142,9 @@
   .mv:active{transform:scale(.97)}
   .mv:disabled{opacity:.32;cursor:default}
   .mv.used{opacity:.5}
-  .mv .n{font-size:14px;font-weight:700;display:block;white-space:nowrap}
+  .mv .n{font-size:14px;font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mv .tag{display:block;font-style:normal;font-size:10px;color:var(--sub);margin-top:2px}
-  .mv .c{font-size:12px;color:var(--sub);display:block;margin-top:2px}
+  .mv .c{font-size:12px;color:var(--sub);display:block;margin-top:2px;white-space:nowrap}
   .mv .c b{color:var(--fg)}
   .mv .o{color:var(--accent);font-style:normal}
 
@@ -98,13 +153,17 @@
   .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--sub)}
   .log div:last-child{color:var(--fg)}
 
-  /* 3. 結果 */
+  /* 4. 結果 */
   .endbox{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px}
   .endbox .big{font-size:56px}
   .endbox .msg{font-size:24px;font-weight:700}
+  .endbox .got{font-size:17px;color:var(--accent);min-height:24px}
+  .endbox .dots{font-size:14px;color:var(--sub);letter-spacing:.12em}
   .btn{background:var(--accent);color:#221a0c;border:0;border-radius:12px;padding:13px 22px;
     font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;width:100%;max-width:260px}
+  .btn:disabled{opacity:.35;cursor:default}
   .btn.sub{background:transparent;color:var(--sub);border:1px solid var(--line)}
+  #s-prep .btn{max-width:none;margin-top:10px}
 </style>
 </head>
 <body>
@@ -113,11 +172,24 @@
   <!-- 1. キャラ選択 -->
   <section id="s-select" class="screen on">
     <h1>醸しコロ</h1>
-    <p class="lead">酵母を1体えらぶ。相手はおまかせ。</p>
+    <p class="lead">酵母を1体えらぶ。蔵をめぐって6体たおす。</p>
+    <div class="runbar" id="sel-run"></div>
     <div class="cards" id="cards"></div>
   </section>
 
-  <!-- 2. バトル -->
+  <!-- 2. 準備 -->
+  <section id="s-prep" class="screen">
+    <div class="runbar" id="prep-run"></div>
+    <div class="prow" id="prep-char"></div>
+    <div class="ttl">わざを4つえらぶ <span id="prep-cnt"></span></div>
+    <div class="pool" id="prep-pool"></div>
+    <div class="ttl">エネコロ（🔒はかえられない）</div>
+    <div class="facebar" id="prep-dice"></div>
+    <div class="inv" id="prep-inv"></div>
+    <button class="btn" id="go">たたかう</button>
+  </section>
+
+  <!-- 3. バトル -->
   <section id="s-battle" class="screen">
     <div class="fighter" id="f-foe">
       <div class="em"></div>
@@ -157,16 +229,30 @@
     <div class="log" id="log"></div>
   </section>
 
-  <!-- 3. 結果 -->
+  <!-- 4. 結果 -->
   <section id="s-end" class="screen">
     <div class="endbox">
       <div class="big" id="end-em"></div>
       <div class="msg" id="end-msg"></div>
-      <button class="btn" id="again">もう一回</button>
-      <button class="btn sub" id="toselect">キャラ選択へ</button>
+      <div class="got" id="end-got"></div>
+      <div class="dots" id="end-dots"></div>
+      <button class="btn" id="again"></button>
+      <button class="btn sub" id="toselect"></button>
     </div>
   </section>
 
+</div>
+
+<!-- チップ選択シート -->
+<div class="sheet" id="sheet">
+  <div class="sheetin">
+    <h3 id="sheet-ttl">この面にはめるチップ</h3>
+    <div class="chips" id="sheet-chips"></div>
+    <div class="sheetbtns">
+      <button class="btn sub" id="sheet-off">はずす</button>
+      <button class="btn sub" id="sheet-close">とじる</button>
+    </div>
+  </div>
 </div>
 
 <script src="engine.js"></script>
@@ -175,49 +261,261 @@
   'use strict';
   var E = window.KamoshiEngine;
   var ME = 0, FOE = 1;
-  var st = null, myChar = null, foeChar = null, busy = false, logs = [];
+  var LAP = 6; // 1周で倒す相手の数
+
+  // ---------------- 保存（localStorage・1キーだけ） ----------------
+  var SKEY = 'kamoshi-koro:v3';
+  var save = null;
+
+  function freshSave(){
+    var s = { v:3, chips:{}, dice:{}, moves:{}, run:null };
+    E.CHIP_ORDER.forEach(function(k){ s.chips[k] = 0; });
+    E.CHARS.forEach(function(c){
+      s.dice[c.id] = [null,null,null,null];
+      s.moves[c.id] = c.star.slice();
+    });
+    return s;
+  }
+  function validSave(s){
+    if (!s || s.v !== 3 || !s.chips || !s.dice || !s.moves) return false;
+    var i, ok = true;
+    for (i = 0; i < E.CHIP_ORDER.length; i++){
+      var n = s.chips[E.CHIP_ORDER[i]];
+      if (typeof n !== 'number' || !isFinite(n) || n < 0) return false;
+    }
+    E.CHARS.forEach(function(c){
+      var d = s.dice[c.id], m = s.moves[c.id];
+      if (!Array.isArray(d) || d.length !== 4) { ok = false; return; }
+      for (var j = 0; j < 4; j++) if (d[j] !== null && !E.CHIPS[d[j]]) { ok = false; return; }
+      if (!Array.isArray(m) || m.length !== 4) { ok = false; return; }
+      var seen = {};
+      for (var k = 0; k < 4; k++){
+        if (!(m[k] >= 0 && m[k] < c.moves.length) || seen[m[k]]) { ok = false; return; }
+        seen[m[k]] = 1;
+      }
+    });
+    if (!ok) return false;
+    if (s.run !== null){
+      var r = s.run;
+      if (!r || !E.getChar(r.charId) || !Array.isArray(r.rest) || typeof r.wins !== 'number') return false;
+      if (r.wins < 0 || r.wins > LAP || r.rest.length + r.wins !== LAP) return false;
+      for (var q = 0; q < r.rest.length; q++) if (!E.getChar(r.rest[q])) return false;
+    }
+    return true;
+  }
+  function loadSave(){
+    var s = null;
+    try { s = JSON.parse(localStorage.getItem(SKEY)); } catch(e) { s = null; }
+    if (!validSave(s)) s = freshSave();   // 壊れていたら丸ごと捨てて初期化
+    return s;
+  }
+  function writeSave(){
+    try { localStorage.setItem(SKEY, JSON.stringify(save)); } catch(e) {}
+  }
+  save = loadSave();
+
+  // ---------------- 小物 ----------------
+  var st = null, myF = null, foeF = null, busy = false, logs = [], prepChar = null, sheetSlot = -1;
+  var lastGot = [];
 
   function $(id){ return document.getElementById(id); }
   function show(id){
-    ['s-select','s-battle','s-end'].forEach(function(s){ $(s).classList.toggle('on', s===id); });
+    ['s-select','s-prep','s-battle','s-end'].forEach(function(s){ $(s).classList.toggle('on', s===id); });
+    window.scrollTo(0,0);
   }
   function em(k){ return E.ORIENT[k].emoji; }
   function en(k){ return E.ENERGY[k].emoji; }
-  // 6面の内訳（エネコロ / キャラコロ）。数値は出さない
-  function energyFaces(c){ return c.energy.map(en).join(''); }
+  function facesLine(f){ return f.energy.map(E.faceEmoji).join(' '); }
   function dieFaces(c){ return c.die.map(em).join(''); }
+  function dots(wins){
+    var s = '';
+    for (var i = 0; i < LAP; i++) s += (i < wins ? '●' : '○');
+    return s;
+  }
+  function runLine(){
+    if (!save.run) return '';
+    return '蔵めぐり ' + dots(save.run.wins) + '<b>' + save.run.wins + '勝</b>';
+  }
+  function shuffled(rngless){
+    var a = E.CHARS.map(function(c){ return c.id; });
+    for (var i = a.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i+1)), t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function loadOf(id){ return { moves: save.moves[id], chips: save.dice[id] }; }
 
-  // ---- 側ごとのダイス置き場（上=相手 / 下=自分）----
+  // ---------------- 1. キャラ選択 ----------------
+  function drawSelect(){
+    $('sel-run').innerHTML = runLine();
+    var box = $('cards');
+    box.innerHTML = '';
+    E.CHARS.forEach(function(c){
+      var live = !save.run || save.run.charId === c.id;
+      var f = E.buildFighter(c.id, loadOf(c.id));
+      var d = document.createElement('div');
+      d.className = 'card' + (live ? '' : ' off');
+      d.innerHTML = '<div class="em">'+c.emoji+'</div><div class="nm">'+c.name+'</div>'+
+                    '<div class="tp">'+c.type+'</div><div class="hp">HP '+c.hp+'</div>'+
+                    '<div class="fc">'+facesLine(f)+'<br>'+dieFaces(c)+'</div>'+
+                    (save.run && live ? '<div class="go">つづきから</div>' : '');
+      if (live) d.onclick = function(){ chooseChar(c.id); };
+      box.appendChild(d);
+    });
+  }
+
+  function chooseChar(id){
+    if (!save.run) save.run = { charId: id, rest: shuffled(), wins: 0 };
+    goPrep();
+  }
+
+  // ---------------- 2. 準備 ----------------
+  function goPrep(){
+    prepChar = E.getChar(save.run.charId);
+    drawPrep();
+    show('s-prep');
+  }
+
+  function moveLabel(mv){
+    if (mv.kind === 'heal') return '回復' + mv.power;
+    if (mv.kind === 'guard') return '半減';
+    return String(mv.power);
+  }
+  function orientLabel(mv){
+    var e = mv.eff || {}, s = em(mv.orient);
+    if (e.plus) return s + '+' + e.plus;
+    if (e.healPlus) return s + '回復+' + e.healPlus;
+    if (e.heal) return s + '回復' + e.heal;
+    if (e.self) return s + '自分に' + e.self;
+    if (e.minus) return s + '相手🎲-1';
+    if (e.guard) return s + '半減';
+    return s;
+  }
+  // そのエネの面を1面も持っていないか（✨は穴埋めなので「持っている」には数えない）
+  function missingSet(){
+    var faces = E.buildEnergy(prepChar, save.dice[prepChar.id]);
+    var have = {};
+    faces.forEach(function(f){ f.forEach(function(k){ have[k] = 1; }); });
+    return { has: function(k){ return !!have[k]; } };
+  }
+  // ⚠️は「選んだ4技」のコストにだけ出す（禁止はしない）
+  function costHtml(mv, miss, sel){
+    return mv.cost.map(function(k){
+      return en(k) + (sel && !miss.has(k) ? '<span class="wn">⚠️</span>' : '');
+    }).join('');
+  }
+
+  function drawPrep(){
+    var id = prepChar.id, sel = save.moves[id], miss = missingSet();
+    $('prep-run').innerHTML = runLine();
+    $('prep-char').innerHTML = '<span class="em">'+prepChar.emoji+'</span>'+prepChar.name+
+      '<span class="hp">HP '+prepChar.hp+'</span>';
+    $('prep-cnt').textContent = sel.length + '/4';
+
+    var pool = $('prep-pool');
+    pool.innerHTML = '';
+    prepChar.moves.forEach(function(mv, i){
+      var on = sel.indexOf(i) >= 0;
+      var d = document.createElement('div');
+      d.className = 'pv' + (on ? ' sel' : '');
+      d.innerHTML = '<span class="g">'+E.GROUP[mv.g]+'</span>'+
+        '<span class="n">'+mv.name+'</span>'+
+        '<span class="c">'+costHtml(mv, miss, on)+'<b>'+moveLabel(mv)+'</b></span>'+
+        '<span class="o">'+orientLabel(mv)+'</span>';
+      d.onclick = function(){ toggleMove(i); };
+      pool.appendChild(d);
+    });
+
+    var faces = E.buildEnergy(prepChar, save.dice[id]);
+    var bar = $('prep-dice');
+    bar.innerHTML = '';
+    faces.forEach(function(f, i){
+      var fixed = i < prepChar.fixed.length;
+      var slot = i - prepChar.fixed.length;
+      var chip = fixed ? null : save.dice[id][slot];
+      var d = document.createElement('div');
+      d.className = 'fs' + (fixed ? ' lock' : '') + (chip ? ' chip' : '');
+      d.innerHTML = '<span class="v'+(f.length>1?' two':'')+'">'+E.faceEmoji(f)+'</span>'+
+                    (fixed ? '<i>🔒</i>' : '');
+      if (!fixed) d.onclick = function(){ openSheet(slot); };
+      bar.appendChild(d);
+    });
+
+    var inv = $('prep-inv');
+    inv.innerHTML = E.CHIP_ORDER.map(function(k){
+      var n = save.chips[k];
+      return '<span class="'+(n?'':'z')+'">'+E.CHIPS[k].emoji+'<b>'+n+'</b></span>';
+    }).join('');
+
+    $('go').disabled = sel.length !== 4;
+    $('go').textContent = sel.length === 4 ? 'たたかう' : 'わざを' + (4 - sel.length) + 'つえらぶ';
+  }
+
+  function toggleMove(i){
+    var sel = save.moves[prepChar.id], at = sel.indexOf(i);
+    if (at >= 0) sel.splice(at, 1);
+    else if (sel.length < 4) sel.push(i);   // 5つ目は入らない
+    sel.sort(function(a,b){ return a-b; });
+    drawPrep();
+  }
+
+  // チップ選択シート
+  function openSheet(slot){
+    sheetSlot = slot;
+    var id = prepChar.id, cur = save.dice[id][slot];
+    $('sheet-ttl').textContent = 'この面にはめるチップ（いまは ' +
+      E.faceEmoji(cur ? E.CHIPS[cur].face : [prepChar.slots[slot]]) + '）';
+    var box = $('sheet-chips');
+    box.innerHTML = '';
+    E.CHIP_ORDER.forEach(function(k){
+      var n = save.chips[k], on = (cur === k);
+      var d = document.createElement('div');
+      d.className = 'chip' + (n || on ? '' : ' z') + (on ? ' on' : '');
+      d.innerHTML = '<div class="v'+(E.CHIPS[k].face.length>1?' two':'')+'">'+E.CHIPS[k].emoji+'</div>'+
+                    '<div class="k">'+n+'まい</div>';
+      if (n) d.onclick = function(){ setChip(k); };
+      box.appendChild(d);
+    });
+    $('sheet-off').disabled = !cur;
+    $('sheet').classList.add('on');
+  }
+  function closeSheet(){ $('sheet').classList.remove('on'); sheetSlot = -1; }
+  function setChip(k){
+    var id = prepChar.id, cur = save.dice[id][sheetSlot];
+    if (cur) save.chips[cur]++;      // 付け替え: 外したぶんは在庫に戻る
+    save.chips[k]--;
+    save.dice[id][sheetSlot] = k;
+    closeSheet(); drawPrep();
+  }
+  $('sheet-off').onclick = function(){
+    var id = prepChar.id, cur = save.dice[id][sheetSlot];
+    if (cur) { save.chips[cur]++; save.dice[id][sheetSlot] = null; }
+    closeSheet(); drawPrep();
+  };
+  $('sheet-close').onclick = closeSheet;
+  $('sheet').onclick = function(e){ if (e.target === $('sheet')) closeSheet(); };
+
+  $('go').onclick = function(){
+    if (save.moves[prepChar.id].length !== 4) return;
+    writeSave();                              // 保存①: たたかう
+    newBattle();
+  };
+
+  // ---------------- 3. バトル ----------------
   function stage(side){ return $(side === ME ? 'stage-me' : 'stage-foe'); }
   function lb(side){ return $(side === ME ? 'lb-me' : 'lb-foe'); }
   function res(side){ return $(side === ME ? 'res-me' : 'res-foe'); }
   function dchar(side){ return $(side === ME ? 'dchar-me' : 'dchar-foe'); }
   function dbox(side){ return $(side === ME ? 'denergy-me' : 'denergy-foe'); }
-  // 転がるのは手番側だけ。手番でない側は薄く残す
   function dimStage(active){
     stage(ME).classList.toggle('dim', active !== ME);
     stage(FOE).classList.toggle('dim', active !== FOE);
   }
 
-  // ---- キャラ選択 ----
-  E.CHARS.forEach(function(c){
-    var d = document.createElement('div');
-    d.className = 'card';
-    d.innerHTML = '<div class="em">'+c.emoji+'</div><div class="nm">'+c.name+'</div>'+
-                  '<div class="tp">'+c.type+'</div><div class="hp">HP '+c.hp+'</div>'+
-                  '<div class="fc">'+energyFaces(c)+'<br>'+dieFaces(c)+'</div>';
-    d.onclick = function(){ start(c); };
-    $('cards').appendChild(d);
-  });
-
-  function start(c){
-    myChar = c;
-    foeChar = E.CHARS[Math.floor(Math.random()*E.CHARS.length)];
-    newBattle();
-  }
-
   function newBattle(){
-    st = E.newState(myChar, foeChar);
+    var myId = save.run.charId, foeId = save.run.rest[0];
+    st = E.newState(myId, foeId, null, loadOf(myId), null); // 相手は★4技＋素の面
+    myF = st.chars[ME]; foeF = st.chars[FOE];
     logs = []; busy = (st.turn === FOE);
     [ME, FOE].forEach(function(s){
       res(s).textContent = '';
@@ -225,8 +523,8 @@
       dchar(s).textContent = '🧍';
       drawEnergySlots(s, 3);
     });
-    $('faces-me').textContent = '🎲 ' + energyFaces(myChar) + '　' + dieFaces(myChar);
-    $('faces-foe').textContent = '🎲 ' + energyFaces(foeChar) + '　' + dieFaces(foeChar);
+    $('faces-me').textContent = '🎲 ' + facesLine(myF) + '　' + dieFaces(myF);
+    $('faces-foe').textContent = '🎲 ' + facesLine(foeF) + '　' + dieFaces(foeF);
     dimStage(st.turn);
     drawFighters(); drawMoves(); drawLog();
     show('s-battle');
@@ -234,9 +532,8 @@
     else lb(ME).textContent = 'ねらう技を押すと転がる';
   }
 
-  // ---- 表示 ----
   function drawFighters(){
-    [[ 'f-me', ME, myChar ], [ 'f-foe', FOE, foeChar ]].forEach(function(p){
+    [[ 'f-me', ME, myF ], [ 'f-foe', FOE, foeF ]].forEach(function(p){
       var el = $(p[0]), side = p[1], c = p[2];
       el.querySelector('.em').textContent = c.emoji;
       el.querySelector('.n').textContent = c.name;
@@ -256,33 +553,18 @@
     var box = dbox(side);
     box.innerHTML = '';
     for (var i = 0; i < 3; i++){
+      var f = faces && i < n ? faces[i] : null;
       var d = document.createElement('div');
-      d.className = 'die en' + (i >= n ? ' off' : '');
-      d.textContent = faces ? (i < n ? en(faces[i]) : '·') : '·';
+      d.className = 'die en' + (i >= n ? ' off' : '') + (f && f.length > 1 ? ' two' : '');
+      d.textContent = f ? E.faceEmoji(f) : '·';
       box.appendChild(d);
     }
-  }
-
-  // 技ボタンの表示: 技名 / コスト絵文字 威力　向き記号+おまけ（2段）
-  function moveLabel(mv){
-    if (mv.kind === 'heal') return '回復' + mv.power;
-    if (mv.kind === 'guard') return '半減';
-    return String(mv.power);
-  }
-  function orientLabel(mv){
-    var e = mv.eff || {}, s = em(mv.orient);
-    if (e.plus) return s + '+' + e.plus;
-    if (e.healPlus) return s + '回復+' + e.healPlus;
-    if (e.heal) return s + '回復' + e.heal;
-    if (e.self) return s + '自分に' + e.self;
-    if (e.minus) return s + '相手🎲-1';
-    return s;
   }
 
   function drawMoves(){
     var box = $('moves');
     box.innerHTML = '';
-    myChar.moves.forEach(function(mv, i){
+    myF.moves.forEach(function(mv, i){
       var b = document.createElement('button');
       var used = (i === st.lastMove[ME]);
       b.className = 'mv' + (used ? ' used' : '');
@@ -299,7 +581,6 @@
     $('log').innerHTML = logs.slice(-3).map(function(t){ return '<div>' + t + '</div>'; }).join('');
   }
 
-  // ---- 1手番の演出 ----
   function playTurn(side, moveIdx, done){
     var c = st.chars[side], mv = c.moves[moveIdx];
     var n = E.energyCount(st, side);
@@ -336,7 +617,6 @@
       if (r.selfDamage) s += '　ロマンで自分に' + r.selfDamage;
       return s;
     }
-    // r.heal は上限で切ったあとの「実際に回復した量」（engine.js の healSide が返す差分）
     if (mv.kind === 'heal') s = mv.name + '！ ' + (r.heal ? r.heal + '回復' : 'まんたん！');
     else if (mv.kind === 'guard') s = mv.name + '！ つぎ半減';
     else s = mv.name + '！ ' + r.damage + 'ダメージ';
@@ -345,6 +625,7 @@
       s += '　' + em(r.orient) + 'ぴったり！';
       if (r.minus) s += ' 相手エネコロ-1';
       if (r.selfDamage) s += ' 自分に' + r.selfDamage;
+      if (mv.kind === 'atk' && r.guard) s += ' つぎ半減';
       if (mv.kind !== 'heal' && r.heal) s += ' ' + r.heal + '回復';
     }
     return s;
@@ -355,13 +636,11 @@
     busy = true; drawMoves();
     playTurn(ME, i, afterTurn);
   }
-
   function foeTurn(){
     if (st.over) { return afterTurn(); }
     var i = E.cpuChoose(st, FOE);
     playTurn(FOE, i, afterTurn);
   }
-
   function afterTurn(){
     if (st.over) return end();
     if (st.turn === FOE) {
@@ -377,15 +656,46 @@
     }
   }
 
+  // ---------------- 4. 結果（＋蔵めぐりの報酬） ----------------
   function end(){
     var win = st.winner === ME;
-    $('end-em').textContent = win ? myChar.emoji : foeChar.emoji;
-    $('end-msg').textContent = win ? 'かった！' : 'まけた…';
+    lastGot = [];
+    if (win){
+      lastGot.push(E.rollDrop(foeF, null));                       // 通常枠
+      save.run.wins++;
+      save.run.rest.shift();
+      if (save.run.wins % 3 === 0) lastGot.push(E.rollRare(null)); // 3勝ごとにレア
+      lastGot.forEach(function(k){ save.chips[k]++; });
+    } else {
+      save.run = null;                                            // 負けたらその周は終了
+    }
+    writeSave();                                                  // 保存②: 結果画面の表示時
+
+    $('end-em').textContent = win ? myF.emoji : foeF.emoji;
+    var cleared = win && save.run && save.run.rest.length === 0;
+    $('end-msg').textContent = cleared ? '1周クリア！' : (win ? 'かった！' : 'まけた…');
+    $('end-got').innerHTML = win
+      ? lastGot.map(function(k){ return E.CHIPS[k].emoji; }).join('と') + 'をもらった！'
+      : '';
+    $('end-dots').innerHTML = win ? '蔵めぐり ' + dots(save.run.wins) : '蔵めぐり ' + dots(0);
+    $('again').textContent = win ? (cleared ? 'もう1周' : 'つぎへ') : 'もういちど';
+    $('toselect').textContent = win ? 'やめる' : 'キャラ選択へ';
     show('s-end');
   }
 
-  $('again').onclick = function(){ newBattle(); };
-  $('toselect').onclick = function(){ show('s-select'); };
+  $('again').onclick = function(){
+    if (!save.run) save.run = { charId: prepChar.id, rest: shuffled(), wins: 0 };  // 負けたあと・もういちど
+    else if (save.run.rest.length === 0) save.run = { charId: save.run.charId, rest: shuffled(), wins: 0 }; // つぎの周
+    goPrep();
+  };
+  $('toselect').onclick = function(){
+    save.run = null; writeSave();
+    drawSelect(); show('s-select');
+  };
+
+  // ---------------- 起動 ----------------
+  drawSelect();
+  show('s-select');
 })();
 </script>
 </body>

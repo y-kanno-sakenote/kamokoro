@@ -1,5 +1,5 @@
-// 醸しコロ ロジック層 v2（宣言制・ブラウザ / node 両用）
-// 数値の正は docs/characters.md、ルールの正は docs/spec.md。ここでは勝手に調整しない。
+// 醸しコロ ロジック層 v3（宣言制・技プール7→4・エネコロ固定2面＋カスタム4面・ブラウザ / node 両用）
+// 数値の正は docs/characters.md、ルールの正は docs/spec_v3.md（v2部分は docs/spec.md）。ここでは勝手に調整しない。
 (function (root, factory) {
   var api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -26,83 +26,172 @@
   };
   var WILD = 'wild';
 
+  // チップ9種（面の値は「エネキーの配列」。2エネ面は1面でそのエネ2個分）
+  var CHIP_ORDER = ['rice', 'koji', 'water', 'heat', 'wild', 'rice2', 'koji2', 'water2', 'heat2'];
+  var CHIPS = {
+    rice:   { face: ['rice'],          emoji: '🌾',   rare: false },
+    koji:   { face: ['koji'],          emoji: '🍚',   rare: false },
+    water:  { face: ['water'],         emoji: '💧',   rare: false },
+    heat:   { face: ['heat'],          emoji: '🔥',   rare: false },
+    wild:   { face: ['wild'],          emoji: '✨',   rare: true },
+    rice2:  { face: ['rice', 'rice'],   emoji: '🌾🌾', rare: true },
+    koji2:  { face: ['koji', 'koji'],   emoji: '🍚🍚', rare: true },
+    water2: { face: ['water', 'water'], emoji: '💧💧', rare: true },
+    heat2:  { face: ['heat', 'heat'],   emoji: '🔥🔥', rare: true }
+  };
+
   // 技の種別: atk=攻撃 / heal=回復 / guard=次に受けるダメージ半減
   // 向き効果 eff: {plus:N} 追加ダメージ / {self:N} 自分にN / {minus:1} 相手の次エネコロ-1
-  //               {heal:N} 回復N（guard技の向き効果）/ {healPlus:N} 回復量に+N
+  //               {heal:N} 回復N / {healPlus:N} 回復量に+N / {guard:true} 次に受けるダメージ半減
+  // 技の区分 g: st=安定(1) / md=中(2) / rm=ロマン(3) / sp=支え
 
   var CHARS = [
     {
       id: 'k6', no: '6', emoji: '🏺', name: '協会6号', type: '🫧泡', hp: 110,
-      energy: ['rice', 'rice', 'koji', 'water', 'heat', 'wild'],
+      fixed: ['rice', 'rice'],                    // 外せない2面
+      slots: ['koji', 'water', 'heat', 'wild'],   // カスタム4面の素の面
       die: ['s', 's', 'a', 'u', 'y', 'g'],
+      star: [0, 2, 4, 6],
       moves: [
-        { name: 'こつこつ',   cost: ['rice'],                 kind: 'atk',  power: 10, orient: 's', eff: { plus: 5 } },
-        { name: 'あかぞめ',   cost: ['rice', 'koji'],         kind: 'atk',  power: 25, orient: 's', eff: { minus: 1 } },
-        { name: '秋田の底力', cost: ['rice', 'rice', 'koji'], kind: 'atk',  power: 35, orient: 'a', eff: { plus: 10 } },
-        { name: 'ご長寿',     cost: ['koji', 'heat'],         kind: 'heal', power: 20, orient: 's', eff: { healPlus: 10 } }
+        { name: 'こつこつ',   g: 'st', cost: ['rice'],                   kind: 'atk',  power: 10, orient: 's', eff: { plus: 5 } },
+        { name: 'まだまだ',   g: 'st', cost: ['water'],                  kind: 'atk',  power: 10, orient: 'y', eff: { heal: 5 } },
+        { name: 'あかぞめ',   g: 'md', cost: ['rice', 'koji'],           kind: 'atk',  power: 25, orient: 's', eff: { minus: 1 } },
+        { name: 'ぐつぐつ',   g: 'md', cost: ['rice', 'heat'],           kind: 'atk',  power: 20, orient: 'u', eff: { plus: 10 } },
+        { name: '秋田の底力', g: 'rm', cost: ['rice', 'rice', 'koji'],   kind: 'atk',  power: 35, orient: 'a', eff: { plus: 10 } },
+        { name: 'おおむかし', g: 'rm', cost: ['rice', 'koji', 'water'],  kind: 'atk',  power: 40, orient: 'g', eff: { plus: 10 } },
+        { name: 'ご長寿',     g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 20, orient: 's', eff: { healPlus: 10 } }
       ]
     },
     {
       id: 'k7', no: '7', emoji: '🍶', name: '協会7号', type: '🫧泡', hp: 105,
-      energy: ['rice', 'koji', 'koji', 'water', 'heat', 'wild'],
+      fixed: ['koji', 'koji'],
+      slots: ['rice', 'water', 'heat', 'wild'],
       die: ['s', 's', 's', 'a', 'y', 'g'],
+      star: [0, 2, 4, 6],
       moves: [
-        { name: 'ぷくぷく',   cost: ['koji'],                  kind: 'atk',   power: 10, orient: 's', eff: { plus: 5 } },
-        { name: '高泡',       cost: ['koji', 'rice'],          kind: 'atk',   power: 20, orient: 's', eff: { plus: 10 } },
-        { name: '真澄の一撃', cost: ['koji', 'koji', 'water'], kind: 'atk',   power: 35, orient: 'g', eff: { self: 10 } },
-        { name: 'きじゅん',   cost: ['koji', 'heat'],          kind: 'guard', power: 0,  orient: 's', eff: { heal: 10 } }
+        { name: 'ぷくぷく',   g: 'st', cost: ['koji'],                   kind: 'atk',   power: 10, orient: 's', eff: { plus: 5 } },
+        { name: 'そつなく',   g: 'st', cost: ['water'],                  kind: 'atk',   power: 10, orient: 'y', eff: { plus: 5 } },
+        { name: '高泡',       g: 'md', cost: ['koji', 'rice'],           kind: 'atk',   power: 20, orient: 's', eff: { plus: 10 } },
+        { name: 'ふきこぼれ', g: 'md', cost: ['koji', 'koji'],           kind: 'atk',   power: 20, orient: 'a', eff: { minus: 1 } },
+        { name: '真澄の一撃', g: 'rm', cost: ['koji', 'koji', 'water'],  kind: 'atk',   power: 35, orient: 'g', eff: { self: 10 } },
+        { name: 'あわだらけ', g: 'rm', cost: ['koji', 'rice', 'heat'],   kind: 'atk',   power: 40, orient: 'y', eff: { plus: 10 } },
+        { name: 'きじゅん',   g: 'sp', cost: ['koji', 'heat'],           kind: 'guard', power: 0,  orient: 's', eff: { heal: 10 } }
       ]
     },
     {
       id: 'k9', no: '9', emoji: '🍈', name: '協会9号', type: '🌸香', hp: 90,
-      energy: ['koji', 'water', 'water', 'heat', 'heat', 'wild'],
+      fixed: ['water', 'water'],
+      slots: ['koji', 'heat', 'heat', 'wild'],
       die: ['y', 'y', 'y', 's', 'a', 'g'],
+      star: [0, 2, 4, 6],
       moves: [
-        { name: '吟醸香',     cost: ['water'],                    kind: 'atk',  power: 10, orient: 'y', eff: { plus: 5 } },
-        { name: '野白式',     cost: ['water', 'heat'],            kind: 'atk',  power: 15, orient: 'y', eff: { plus: 5 } },
-        { name: '熊本の華',   cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 35, orient: 'y', eff: { minus: 1 } },
-        { name: '低温じっくり', cost: ['koji', 'heat'],           kind: 'heal', power: 30, orient: 'y', eff: { healPlus: 10 } }
+        { name: '吟醸香',       g: 'st', cost: ['water'],                    kind: 'atk',  power: 10, orient: 'y', eff: { plus: 5 } },
+        { name: 'ひとはだ',     g: 'st', cost: ['heat'],                     kind: 'atk',  power: 10, orient: 's', eff: { plus: 5 } },
+        { name: '野白式',       g: 'md', cost: ['water', 'heat'],            kind: 'atk',  power: 15, orient: 'y', eff: { plus: 5 } },
+        { name: 'ねかせる',     g: 'md', cost: ['water', 'koji'],            kind: 'atk',  power: 20, orient: 'a', eff: { guard: true } },
+        { name: '熊本の華',     g: 'rm', cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 35, orient: 'y', eff: { minus: 1 } },
+        { name: 'おおころがり', g: 'rm', cost: ['water', 'water', 'koji'],   kind: 'atk',  power: 40, orient: 'g', eff: { plus: 15 } },
+        { name: '低温じっくり', g: 'sp', cost: ['koji', 'heat'],             kind: 'heal', power: 30, orient: 'y', eff: { healPlus: 10 } }
       ]
     },
     {
       id: 'k10', no: '10', emoji: '❄️', name: '協会10号', type: '🫧泡', hp: 110,
-      energy: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
+      fixed: ['water', 'water'],
+      slots: ['rice', 'koji', 'heat', 'wild'],
       die: ['a', 'a', 'a', 's', 'y', 'u'],
+      star: [0, 2, 4, 6],
       moves: [
-        { name: 'しんしん',     cost: ['water'],                  kind: 'atk',  power: 10, orient: 'a', eff: { plus: 5 } },
-        { name: '雪どけ',       cost: ['water', 'koji'],          kind: 'atk',  power: 20, orient: 'a', eff: { heal: 5 } },
-        { name: '東北の底冷え', cost: ['water', 'water', 'heat'], kind: 'atk',  power: 35, orient: 'a', eff: { minus: 1 } },
-        { name: '冬ごもり',     cost: ['koji', 'heat'],           kind: 'heal', power: 20, orient: 'a', eff: { healPlus: 10 } }
+        { name: 'しんしん',     g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, orient: 'a', eff: { plus: 5 } },
+        { name: 'つらら',       g: 'st', cost: ['rice'],                    kind: 'atk',  power: 10, orient: 'u', eff: { plus: 5 } },
+        { name: '雪どけ',       g: 'md', cost: ['water', 'koji'],           kind: 'atk',  power: 20, orient: 'a', eff: { heal: 5 } },
+        { name: 'ゆきかき',     g: 'md', cost: ['water', 'heat'],           kind: 'atk',  power: 20, orient: 'y', eff: { plus: 10 } },
+        { name: '東北の底冷え', g: 'rm', cost: ['water', 'water', 'heat'],  kind: 'atk',  power: 35, orient: 'a', eff: { minus: 1 } },
+        { name: 'おおふぶき',   g: 'rm', cost: ['water', 'koji', 'heat'],   kind: 'atk',  power: 40, orient: 's', eff: { plus: 10 } },
+        { name: '冬ごもり',     g: 'sp', cost: ['koji', 'heat'],            kind: 'heal', power: 20, orient: 'a', eff: { healPlus: 10 } }
       ]
     },
     {
       id: 'k14', no: '14', emoji: '🍏', name: '協会14号', type: '🌸香', hp: 105,
-      energy: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
+      fixed: ['water', 'water'],
+      slots: ['rice', 'koji', 'heat', 'wild'],
       die: ['y', 'y', 's', 's', 'a', 'g'],
+      star: [0, 2, 4, 6],
       moves: [
-        { name: 'すっきり',   cost: ['water'],                   kind: 'atk',  power: 10, orient: 'y', eff: { plus: 5 } },
-        { name: '金沢香',     cost: ['water', 'koji'],           kind: 'atk',  power: 20, orient: 's', eff: { plus: 15 } },
-        { name: '酸なしの美', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 30, orient: 'y', eff: { plus: 10 } },
-        { name: '北陸の水',   cost: ['water', 'heat'],           kind: 'heal', power: 20, orient: 'y', eff: { healPlus: 5 } }
+        { name: 'すっきり',   g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, orient: 'y', eff: { plus: 5 } },
+        { name: 'ひとやすみ', g: 'st', cost: ['koji'],                    kind: 'atk',  power: 10, orient: 'a', eff: { heal: 5 } },
+        { name: '金沢香',     g: 'md', cost: ['water', 'koji'],           kind: 'atk',  power: 20, orient: 's', eff: { plus: 15 } },
+        { name: 'さらり',     g: 'md', cost: ['rice', 'heat'],            kind: 'atk',  power: 20, orient: 'g', eff: { minus: 1 } },
+        { name: '酸なしの美', g: 'rm', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 30, orient: 'y', eff: { plus: 10 } },
+        { name: 'おおみず',   g: 'rm', cost: ['water', 'water', 'heat'],  kind: 'atk',  power: 40, orient: 'a', eff: { plus: 10 } },
+        { name: '北陸の水',   g: 'sp', cost: ['water', 'heat'],           kind: 'heal', power: 20, orient: 'y', eff: { healPlus: 5 } }
       ]
     },
     {
       id: 'k1801', no: '1801', emoji: '🧬', name: '協会1801号', type: '🌸香', hp: 95,
       ability: { name: 'ロマン', failSelf: 10 }, // 技が失敗すると自分に10
-      energy: ['koji', 'koji', 'water', 'heat', 'heat', 'wild'],
+      fixed: ['koji', 'koji'],
+      slots: ['water', 'heat', 'heat', 'wild'],
       die: ['g', 'g', 'y', 'y', 's', 'a'],
+      star: [0, 2, 4, 6],
       moves: [
-        { name: 'セルレニン耐性',   cost: ['koji'],                   kind: 'atk',  power: 10, orient: 'g', eff: { plus: 5 } },
-        { name: 'ハイブリッド',     cost: ['koji', 'water'],          kind: 'atk',  power: 15, orient: 'g', eff: { plus: 5 } },
-        { name: 'りんご香バースト', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 40, orient: 'g', eff: { plus: 10 } },
-        { name: '親ゆずり',         cost: ['koji', 'heat'],           kind: 'heal', power: 30, orient: 's', eff: { healPlus: 10 } }
+        { name: 'セルレニン耐性',   g: 'st', cost: ['koji'],                   kind: 'atk',  power: 10, orient: 'g', eff: { plus: 5 } },
+        { name: 'よくばり',         g: 'st', cost: ['heat'],                   kind: 'atk',  power: 10, orient: 'y', eff: { plus: 5 } },
+        { name: 'ハイブリッド',     g: 'md', cost: ['koji', 'water'],          kind: 'atk',  power: 15, orient: 'g', eff: { plus: 5 } },
+        { name: 'ふんばる',         g: 'md', cost: ['koji', 'koji'],           kind: 'atk',  power: 20, orient: 'y', eff: { guard: true } },
+        { name: 'りんご香バースト', g: 'rm', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 40, orient: 'g', eff: { plus: 10 } },
+        { name: 'ぜんぶだす',       g: 'rm', cost: ['koji', 'heat', 'heat'],   kind: 'atk',  power: 45, orient: 'a', eff: { self: 10 } },
+        { name: '親ゆずり',         g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 30, orient: 's', eff: { healPlus: 10 } }
       ]
     }
   ];
 
+  var GROUP = { st: '安定', md: '中', rm: 'ロマン', sp: '支え' };
+
   function getChar(id) {
     for (var i = 0; i < CHARS.length; i++) if (CHARS[i].id === id) return CHARS[i];
     return null;
+  }
+
+  // ---- エネコロの組み立て --------------------------------------------------
+  // 面の値は「エネキーの配列」: ['koji'] / ['koji','koji'] / ['wild']
+  // chips = カスタム4スロットの中身（null=素の面 / チップキー）
+  function buildEnergy(char, chips) {
+    var faces = [], i;
+    for (i = 0; i < char.fixed.length; i++) faces.push([char.fixed[i]]);
+    for (i = 0; i < char.slots.length; i++) {
+      var c = chips && chips[i];
+      faces.push(c && CHIPS[c] ? CHIPS[c].face.slice() : [char.slots[i]]);
+    }
+    return faces;
+  }
+  function faceEmoji(face) {
+    var s = '';
+    for (var i = 0; i < face.length; i++) s += ENERGY[face[i]].emoji;
+    return s;
+  }
+  function facesSig(faces) {
+    return faces.map(function (f) { return f.join('+'); }).join(',');
+  }
+
+  // 出撃するキャラ（＝素のキャラ定義＋選んだ4技＋組み立てたエネコロ6面）
+  // load = { moves:[i,i,i,i], chips:[null,'koji2',null,null] }。省略時は★4技＋素の面
+  function buildFighter(charOrId, load) {
+    var base = typeof charOrId === 'string' ? getChar(charOrId) : charOrId;
+    if (base && base.base) base = base.base; // すでに組み立て済みなら素に戻す
+    load = load || {};
+    var mi = load.moves && load.moves.length === 4 ? load.moves : base.star;
+    var chips = load.chips && load.chips.length === 4 ? load.chips : [null, null, null, null];
+    var faces = buildEnergy(base, chips);
+    var moves = [];
+    for (var i = 0; i < mi.length; i++) moves.push(base.moves[mi[i]]);
+    return {
+      base: base, id: base.id, no: base.no, emoji: base.emoji, name: base.name,
+      type: base.type, hp: base.hp, ability: base.ability, die: base.die,
+      moveIdx: mi.slice(), chips: chips.slice(),
+      energy: faces,
+      moves: moves,
+      pkey: base.id + '#' + facesSig(faces)
+    };
   }
 
   // ---- ダイス --------------------------------------------------------------
@@ -111,19 +200,24 @@
 
   // キャラコロを1個振る → 向きキー
   function rollChar(char, rng) { return pick(char.die, rng); }
-  // エネコロをn個振る → 面キーの配列
+  // エネコロをn個振る → 面（エネキー配列）の配列
   function rollEnergy(char, n, rng) {
     var out = [];
     for (var i = 0; i < n; i++) out.push(pick(char.energy, rng));
     return out;
   }
 
-  // コスト（面キーの配列）が出目で払えるか。✨は不足分の穴埋めに使える
+  // コスト（エネキーの配列）が出目で払えるか。
+  // faces は「面の配列」で、各面が ['koji'] や ['koji','koji'] や ['wild']。✨は不足分の穴埋めに使える
   function matchCost(cost, faces) {
-    var have = {}, i, wild = 0;
+    var have = {}, i, j, wild = 0, f;
     for (i = 0; i < faces.length; i++) {
-      if (faces[i] === WILD) wild++;
-      else have[faces[i]] = (have[faces[i]] || 0) + 1;
+      f = faces[i];
+      if (typeof f === 'string') f = [f]; // 単一キーで渡されても受ける
+      for (j = 0; j < f.length; j++) {
+        if (f[j] === WILD) wild++;
+        else have[f[j]] = (have[f[j]] || 0) + 1;
+      }
     }
     var need = {};
     for (i = 0; i < cost.length; i++) need[cost[i]] = (need[cost[i]] || 0) + 1;
@@ -132,14 +226,13 @@
     return deficit <= wild;
   }
 
-  // ---- 確率（6^n の厳密列挙） ---------------------------------------------
+  // ---- 確率（6^n の厳密列挙・面の値が可変でもそのまま効く） ----------------
   var _probCache = {};
   function successProb(char, move, n) {
-    var key = char.id + '|' + move.name + '|' + n;
+    var key = (char.pkey || char.id) + '|' + move.name + '|' + n;
     if (_probCache[key] != null) return _probCache[key];
     var faces = char.energy, total = Math.pow(6, n), ok = 0;
-    var idx = new Array(n), roll = new Array(n), i;
-    for (i = 0; i < n; i++) idx[i] = 0;
+    var roll = new Array(n), i;
     for (var c = 0; c < total; c++) {
       var t = c;
       for (i = 0; i < n; i++) { roll[i] = faces[t % 6]; t = Math.floor(t / 6); }
@@ -157,10 +250,24 @@
     return c / char.die.length;
   }
 
+  // ---- 蔵めぐりの報酬 ------------------------------------------------------
+  // ドロップ表（6面）: 倒した相手のタイプに寄る。寄りエネ 泡→🍚 / 香→💧
+  var DROP = {
+    awa:   ['koji', 'koji', 'koji', 'rice', 'water', 'heat'],
+    kaori: ['water', 'water', 'water', 'rice', 'koji', 'heat']
+  };
+  // レア表（6面・3勝ごと）
+  var RARE = ['wild', 'wild', 'rice2', 'koji2', 'water2', 'heat2'];
+
+  function typeKey(char) { return char.type.indexOf('泡') >= 0 ? 'awa' : 'kaori'; }
+  function rollDrop(foeChar, rng) { return pick(DROP[typeKey(foeChar)], rng); }
+  function rollRare(rng) { return pick(RARE, rng); }
+
   // ---- 状態 ----------------------------------------------------------------
-  function newState(charA, charB, rng) {
-    var a = typeof charA === 'string' ? getChar(charA) : charA;
-    var b = typeof charB === 'string' ? getChar(charB) : charB;
+  // loadA / loadB を渡すと「選んだ4技＋カスタム面」で出撃する（省略＝★4技＋素の面）
+  function newState(charA, charB, rng, loadA, loadB) {
+    var a = buildFighter(charA, loadA);
+    var b = buildFighter(charB, loadB);
     var first = rnd(rng) < 0.5 ? 0 : 1;
     return {
       chars: [a, b],
@@ -253,6 +360,7 @@
         if (hit && eff.self) r.selfDamage = eff.self;
         if (hit && eff.heal) r.heal = healSide(state, side, eff.heal);
         if (hit && eff.minus) { state.energyMinus[foe] = true; r.minus = true; }
+        if (hit && eff.guard) { state.halveNext[side] = true; r.guard = true; }
       } else if (mv.kind === 'heal') {
         r.heal = healSide(state, side, mv.power + (hit && eff.healPlus ? eff.healPlus : 0));
       } else if (mv.kind === 'guard') {
@@ -296,9 +404,10 @@
   }
 
   // ---- 通し対戦（sim用） ---------------------------------------------------
+  // opts: {first:0|1, cap:N, loadA:{...}, loadB:{...}}
   function simulateBattle(charA, charB, rng, opts) {
     opts = opts || {};
-    var st = newState(charA, charB, rng);
+    var st = newState(charA, charB, rng, opts.loadA, opts.loadB);
     if (opts.first === 0 || opts.first === 1) { st.first = opts.first; st.turn = opts.first; }
     var declared = [0, 0], succ = [0, 0], fail = [0, 0];
     var guard = 0, cap = opts.cap || 400;
@@ -329,7 +438,11 @@
 
   return {
     CHARS: CHARS, ORIENT: ORIENT, ENERGY: ENERGY, WILD: WILD,
+    CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP, RARE: RARE,
     getChar: getChar,
+    buildEnergy: buildEnergy, buildFighter: buildFighter,
+    faceEmoji: faceEmoji, facesSig: facesSig, typeKey: typeKey,
+    rollDrop: rollDrop, rollRare: rollRare,
     rollChar: rollChar, rollEnergy: rollEnergy, matchCost: matchCost,
     successProb: successProb, orientProb: orientProb,
     newState: newState, energyCount: energyCount, availableMoves: availableMoves,
