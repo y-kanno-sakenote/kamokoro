@@ -3,10 +3,10 @@
 プラコロ型のサイコロバトルを醸造キャラで組んだ単一HTMLゲーム。2026-09-03新設。
 
 ## 正典
-- ルール・バランス目標: `docs/spec.md`（v2の基本ルール）＋ `docs/spec_v3.md`（v3: 技プール7→4・エネコロカスタム・蔵めぐり・上限ルール）／キャラ定義（HP・ダイス構成・技・とくせい）: `docs/characters.md`（ここが正。CLAUDE.mdに書き足さない）。図鑑ページ: `docs/zukan.html`
+- ルール・バランス目標: `docs/spec_v5.md`（**現行**: 属性制・固定2面＋カスタム4面・属性3すくみ）＋ `docs/spec.md`（v2の基本ルール）／`docs/spec_v3.md` は記録用（v5へ移行済み）／キャラ定義（属性・HP・ダイス構成・技・とくせい）: `docs/characters.md`（ここが正。CLAUDE.mdに書き足さない）。図鑑ページ: `docs/zukan.html`
 - ロジック: `engine.js`（ブラウザとnode両用。index.htmlとsimが同じコードを使う2層方式）
 - 本番: `index.html`（単一ファイル＋engine.js。ブラウザで開くだけで動く）
-- 実測: `sim/sim.js`（`node sim/sim.js` で全組み合わせ大量ロール）
+- 実測: `sim/sim.js`（`node sim/sim.js` で全組み合わせ大量ロール。`--noadv` で属性3すくみOFF・`--v3` で構成探索）
 - 恒久判断: Vault `10.Projects/醸しコロ/90_開発ログ.md`
 - オーナー思想: `../../template/owner_context.md`（単一原本。コピー禁止）
 

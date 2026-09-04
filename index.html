@@ -30,6 +30,7 @@
   .card .em{font-size:40px;line-height:1.1}
   .card .nm{font-size:15px;font-weight:700;margin-top:4px}
   .card .tp{font-size:11px;color:var(--sub);margin-top:3px}
+  .card .at{font-size:11px;color:var(--accent);margin-top:2px;font-weight:700}
   .card .hp{font-size:12px;color:var(--accent);margin-top:4px}
   .card .fc{font-size:11px;color:var(--sub);margin-top:5px;line-height:1.5;letter-spacing:.03em}
   .card .go{font-size:11px;color:var(--accent);margin-top:4px}
@@ -38,6 +39,7 @@
   .prow{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin-bottom:6px}
   .prow .em{font-size:24px}
   .prow .hp{font-weight:400;font-size:12px;color:var(--accent)}
+  .prow .at{font-weight:700;font-size:12px;color:var(--accent)}
   .ttl{font-size:11px;color:var(--sub);margin:8px 0 4px}
   .ttl span{color:var(--accent)}
   .pool{display:flex;flex-direction:column;gap:4px}
@@ -53,7 +55,7 @@
   .pv .o{font-size:11px;color:var(--accent);white-space:nowrap;width:76px;flex:none;text-align:right}
   .pv .wn{font-size:9px}
 
-  /* 準備: エネコロ3個（左・中・右）を3行で。1行＝6面すべてカスタム可（v4で固定面は廃止） */
+  /* 準備: エネコロ3個（左・中・右）を3行で。1行＝固定2面（🔒属性×2）＋カスタム4面（v5） */
   .dierow{display:flex;align-items:center;gap:5px;margin-top:4px}
   .dierow .dl{font-size:11px;color:var(--sub);width:12px;flex:none;text-align:center}
   .facebar{flex:1;display:flex;gap:4px}
@@ -61,6 +63,9 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
   .fs .v{font-size:19px;line-height:1}
   .fs.chip{border-color:var(--accent)}
+  /* 固定2面（属性×2）＝🔒。押せない */
+  .fs.fix{cursor:default;border-style:dashed;background:#181410}
+  .fs .lk{position:absolute;top:1px;right:3px;font-size:8px;opacity:.65;line-height:1}
   .inv{display:flex;flex-wrap:wrap;gap:4px 9px;font-size:11px;color:var(--sub);margin-top:6px;line-height:1.5}
   .inv span.z{opacity:.35}
   .inv b{color:var(--fg);font-weight:700}
@@ -89,6 +94,7 @@
   .fighter .nm{font-size:14px;font-weight:700;display:flex;align-items:baseline;gap:6px}
   .fighter .n{white-space:nowrap}
   .fighter .hpn{font-weight:400;color:var(--sub);font-size:12px;white-space:nowrap}
+  .fighter .at{font-weight:700;color:var(--accent);font-size:11px;white-space:nowrap}
   .bar{height:9px;background:#2c2620;border-radius:5px;margin-top:6px;overflow:hidden}
   .bar i{display:block;height:100%;background:var(--hp);transition:width .35s}
   .bar i.low{background:var(--hp2)}
@@ -198,7 +204,7 @@
     <div class="prow" id="prep-char"></div>
     <div class="ttl">わざを4つえらぶ <span id="prep-cnt"></span></div>
     <div class="pool" id="prep-pool"></div>
-    <div class="ttl">エネコロ3個（左から振る・どの面もかえられる）</div>
+    <div class="ttl">エネコロ3個（左から振る・🔒は属性の固定2面）</div>
     <div id="prep-dice"></div>
     <div class="inv" id="prep-inv"></div>
     <button class="btn" id="go">たたかう</button>
@@ -208,7 +214,7 @@
   <section id="s-battle" class="screen">
     <div class="fighter" id="f-foe">
       <div class="em"></div>
-      <div class="info"><div class="nm"><span class="n"></span><span class="badge"></span><span class="hpn"></span></div>
+      <div class="info"><div class="nm"><span class="n"></span><span class="at"></span><span class="badge"></span><span class="hpn"></span></div>
         <div class="bar"><i></i></div></div>
     </div>
 
@@ -234,7 +240,7 @@
 
     <div class="fighter" id="f-me">
       <div class="em"></div>
-      <div class="info"><div class="nm"><span class="n"></span><span class="badge"></span><span class="hpn"></span></div>
+      <div class="info"><div class="nm"><span class="n"></span><span class="at"></span><span class="badge"></span><span class="hpn"></span></div>
         <div class="bar"><i></i></div></div>
     </div>
 
@@ -278,12 +284,13 @@
 
   // ---------------- 保存（localStorage・1キーだけ） ----------------
   var SKEY = 'kamoshi-koro:v3';
-  var SVER = 4;   // v4: エネコロが6面すべてカスタム可になり dice の形が変わった（v3のセーブは読まずに初期化）
+  var SVER = 5;   // v5: 属性制＋固定2面の復活。形が変わったので旧版（v4以前）は読まずに初期化する
   var save = null;
 
   function freshSave(){
-    var s = { v:SVER, chips: E.startChips(), dice:{}, moves:{}, run:null };
-    // 持ち込みチップ（v4）: 選ばせず、🌾🍚💧🔥を各1枚あらかじめ在庫に入れておく
+    // 初期チップ（6枚）は「最初にキャラを選んだとき」に配る（自分の属性が決まらないと配れないため）
+    var s = { v:SVER, chips:{}, dice:{}, moves:{}, run:null, granted:false };
+    E.CHIP_ORDER.forEach(function(k){ s.chips[k] = 0; });
     E.CHARS.forEach(function(c){
       s.dice[c.id] = E.normalizeChips(null);   // 3個 × 6スロット（初期は3個とも素の面）
       s.moves[c.id] = c.star.slice();
@@ -304,6 +311,7 @@
   }
   function validSave(s){
     if (!s || s.v !== SVER || !s.chips || !s.dice || !s.moves) return false;
+    if (typeof s.granted !== 'boolean') return false;
     var i, ok = true;
     for (i = 0; i < E.CHIP_ORDER.length; i++){
       var n = s.chips[E.CHIP_ORDER[i]];
@@ -403,7 +411,8 @@
       var d = document.createElement('div');
       d.className = 'card' + (live ? '' : ' off');
       d.innerHTML = '<div class="em">'+c.emoji+'</div><div class="nm">'+c.name+'</div>'+
-                    '<div class="tp">'+c.type+'</div><div class="hp">HP '+c.hp+'</div>'+
+                    '<div class="tp">'+c.type+'</div>'+
+                    '<div class="at">'+E.attrLabel(c.attr)+'</div><div class="hp">HP '+c.hp+'</div>'+
                     '<div class="fc">'+facesLines(f)+'<br>'+dieFaces(c)+'</div>'+
                     (save.run && live ? '<div class="go">つづきから</div>' : '');
       if (live) d.onclick = function(){ chooseChar(c.id); };
@@ -412,6 +421,13 @@
   }
 
   function chooseChar(id){
+    // 初期チップ6枚（自分の属性×2＋それ以外の4種×1枚）。初回だけ・選ぶピッカーは作らない
+    if (!save.granted){
+      var g = E.startChips(id);
+      E.CHIP_ORDER.forEach(function(k){ save.chips[k] += g[k]; });
+      save.granted = true;
+      writeSave();
+    }
     if (!save.run) save.run = { charId: id, rest: shuffled(), wins: 0, lap: 1 };
     goPrep();
   }
@@ -458,6 +474,7 @@
     var id = prepChar.id, sel = save.moves[id], miss = missingSet();
     $('prep-run').innerHTML = runLine();
     $('prep-char').innerHTML = '<span class="em">'+prepChar.emoji+'</span>'+prepChar.name+
+      '<span class="at">'+E.attrLabel(prepChar.attr)+'</span>'+
       '<span class="hp">HP '+prepChar.hp+'</span>';
     $('prep-cnt').textContent = sel.length + '/4';
 
@@ -489,11 +506,11 @@
       var fb = document.createElement('div');
       fb.className = 'facebar';
       faces.forEach(function(f, slot){
-        var chip = save.dice[id][di][slot];
+        var chip = save.dice[id][di][slot], fixed = E.isFixedSlot(slot);
         var d = document.createElement('div');
-        d.className = 'fs' + (chip ? ' chip' : '');
-        d.innerHTML = '<span class="v">'+E.faceEmoji(f)+'</span>';
-        d.onclick = function(){ openSheet(di, slot); };
+        d.className = 'fs' + (chip ? ' chip' : '') + (fixed ? ' fix' : '');
+        d.innerHTML = '<span class="v">'+E.faceEmoji(f)+'</span>' + (fixed ? '<span class="lk">🔒</span>' : '');
+        if (!fixed) d.onclick = function(){ openSheet(di, slot); };
         fb.appendChild(d);
       });
       row.appendChild(fb);
@@ -521,6 +538,7 @@
 
   // チップ選択シート
   function openSheet(die, slot){
+    if (E.isFixedSlot(slot)) return;      // 固定2面（属性×2）は差し替えられない
     sheetDie = die; sheetSlot = slot;
     var id = prepChar.id, cur = save.dice[id][die][slot];
     var bare = E.faceEmoji([prepChar.slots[slot]]);
@@ -600,6 +618,7 @@
       var el = $(p[0]), side = p[1], c = p[2];
       el.querySelector('.em').textContent = c.emoji;
       el.querySelector('.n').textContent = c.name;
+      el.querySelector('.at').textContent = E.attrLabel(c.attr);
       el.querySelector('.hpn').textContent = st.hp[side];
       var pct = Math.max(0, st.hp[side] / st.maxHp[side]) * 100;
       var bar = el.querySelector('.bar i');
@@ -776,6 +795,7 @@
     if (mv.kind === 'heal') s = mv.name + '！ ' + (r.heal ? r.heal + '回復' : 'まんたん！');
     else if (mv.kind === 'guard') s = mv.name + '！ つぎ半減';
     else s = mv.name + '！ ' + r.damage + 'ダメージ';
+    if (r.adv) s += '　有利+' + E.ADV_BONUS;
     if (r.halved) s += '（半減）';
     if (r.orientHit) {
       s += '　' + oKan(r.orient) + 'ぴったり！';

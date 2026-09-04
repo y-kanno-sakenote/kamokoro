@@ -1,5 +1,5 @@
-// 醸しコロ ロジック層 v3（宣言制・技プール7→4・エネコロ6面すべてカスタム可・ブラウザ / node 両用）
-// 数値の正は docs/characters.md、ルールの正は docs/spec_v3.md（v2部分は docs/spec.md）。ここでは勝手に調整しない。
+// 醸しコロ ロジック層 v5（属性制・固定2面＋カスタム4面・属性3すくみ・ブラウザ / node 両用）
+// 数値の正は docs/characters.md、ルールの正は docs/spec_v5.md（v2部分は docs/spec.md）。ここでは勝手に調整しない。
 (function (root, factory) {
   var api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -10,7 +10,6 @@
   // ---- 語彙 ----------------------------------------------------------------
   // キャラコロの面（内部キー → 漢字1文字）。2026-09-04: 数字の目をやめて漢字に。
   // 並びは「発酵の勢いが上がっていく順」＝静 湧 沸 躍 極。当たり目の範囲指定はこの順が土台。
-  // 内部キー（s/a/u/y/g）と CHARS[].die はそのまま＝バランス・確率は不変。
   var ORIENT = {
     s: { kanji: '静', label: '静' },
     a: { kanji: '湧', label: '湧' },
@@ -29,7 +28,26 @@
   };
   var WILD = 'wild';
 
-  // チップ5種（面の値は「エネキーの配列」。2026-09-03: 2エネ面は廃止＝レアは✨だけ／spec_v3.md §8案1）
+  // ---- 属性（v5 / 2026-09-04 ユーザー裁定） --------------------------------
+  // **属性は3つだけ**: 🌾米 / 🍚麹 / 💧水。🔥温度と✨万能は属性ではなく、全キャラ共通の脇役。
+  // 6体を2体ずつ割り振る: 🌾=6号・10号 / 🍚=7号・1801号 / 💧=9号・14号
+  var ATTR_ORDER = ['rice', 'koji', 'water'];
+  var ATTR = {
+    rice:  { emoji: '🌾', label: '米' },
+    koji:  { emoji: '🍚', label: '麹' },
+    water: { emoji: '💧', label: '水' }
+  };
+  function attrLabel(a) { return ATTR[a] ? ATTR[a].emoji + ATTR[a].label : ''; }
+  // 3すくみ: **麹→米→水→麹**（麹が米を糖化する／米が水を吸う／水が麹を溶かす）
+  // TYPE_ADV[攻める属性] = その属性が有利を取れる相手の属性
+  var TYPE_ADV = { koji: 'rice', rice: 'water', water: 'koji' };
+  var ADV_BONUS = 5;      // 有利な側は「攻撃技の成功時ダメージ +5」（固定。倍率にしない）
+  var advOn = true;       // 既定ON。sim で ON/OFF 両方を測るための切り替え
+  function setTypeAdv(on) { advOn = !!on; }
+  function typeAdvOn() { return advOn; }
+  function hasAdv(atkAttr, defAttr) { return TYPE_ADV[atkAttr] === defAttr; }
+
+  // チップ5種（面の値は「エネキーの配列」。2026-09-03: 2エネ面は廃止＝レアは✨だけ）
   var CHIP_ORDER = ['rice', 'koji', 'water', 'heat', 'wild'];
   var CHIPS = {
     rice:   { face: ['rice'],  emoji: '🌾', rare: false },
@@ -39,116 +57,119 @@
     wild:   { face: ['wild'],  emoji: '✨', rare: true }
   };
 
-  // 開始時の持ち込みチップ（v4 / 2026-09-04 ユーザー裁定 / spec_v3.md §2.2）
-  // **選ばせない**。新しいセーブを作るときに 🌾🍚💧🔥 を各1枚、自動で在庫に入れるだけ。
-  // 準備画面のピッカーは廃止（v3.2の「4まいえらぶ」をやめた）。✨は蔵めぐりの報酬なので配らない。
-  var START_PICK = { kinds: ['rice', 'koji', 'water', 'heat'], each: 1 };
-  // 新規セーブの在庫（チップ5種ぶんの数）
-  function startChips() {
-    var out = {};
-    for (var i = 0; i < CHIP_ORDER.length; i++) out[CHIP_ORDER[i]] = 0;
-    for (var j = 0; j < START_PICK.kinds.length; j++) out[START_PICK.kinds[j]] = START_PICK.each;
+  // 開始時のチップ（v5 / 2026-09-04 ユーザー裁定）
+  // **選ばせない**。新しいセーブで最初にキャラを選んだときに、
+  // **自分の属性チップ×2 ＋ それ以外の4種×1枚ずつ＝合計6枚**を自動で在庫に入れるだけ。
+  var START_CHIPS = { attr: 2, other: 1 };
+  function startChips(charOrId) {
+    var c = typeof charOrId === 'string' ? getChar(charOrId) : charOrId;
+    var out = {}, i, k;
+    for (i = 0; i < CHIP_ORDER.length; i++) {
+      k = CHIP_ORDER[i];
+      out[k] = (c && k === c.attr) ? START_CHIPS.attr : START_CHIPS.other;
+    }
     return out;
   }
 
   // 技の種別: atk=攻撃 / heal=回復 / guard=次に受けるダメージ半減
-  // hit = 当たり目の集合（ORIENT_ORDER の連続範囲が基本。安定3面 / 中2面 / ロマン1面 / 支え2面。
-  //       「自分にN」のような不利な効果は広げない）
+  // hit = 当たり目の集合（安定3面 / 中2面 / ロマン1面 / 支え2面）
   // 当たり目効果 eff: {plus:N} 追加ダメージ / {self:N} 自分にN / {minus:1} 相手の次エネコロ-1
   //               {heal:N} 回復N / {healPlus:N} 回復量に+N / {guard:true} 次に受けるダメージ半減
   // 技の区分 g: st=安定(1) / md=中(2) / rm=ロマン(3) / sp=支え
+  // v5: **7技のうち5技は自分の属性を1個以上含む「属性技」、2技は属性を含まない「サブ技」**。
+  //     ★4技（star）は 属性技3＋サブ技1。技名・威力・効果・当たり目は据え置きで、コストだけ組み替えた。
 
   var CHARS = [
     {
-      id: 'k6', no: '6', emoji: '🏺', name: '協会6号', type: '🫧泡', hp: 110,
-      // 素の6面（全部カスタム可）= 🌾🍚💧🔥✨ ＋ 得意エネ（コスト1技のエネ）1枚。v4で全キャラ統一
+      id: 'k6', no: '6', emoji: '🏺', name: '協会6号', type: '🫧泡', attr: 'rice', hp: 110,
+      // 素の6面（v5）= 固定2面（属性×2）＋ カスタム4面（残り2属性＋🔥＋✨）
       slots: ['rice', 'rice', 'koji', 'water', 'heat', 'wild'],
       die: ['s', 's', 'a', 'u', 'y', 'g'],
       star: [0, 2, 4, 6],
       moves: [
         { name: 'こつこつ',   g: 'st', cost: ['rice'],                   kind: 'atk',  power: 10, hit: ['s', 'a', 'u'],      eff: { plus: 5 } },
-        { name: 'まだまだ',   g: 'st', cost: ['water'],                  kind: 'atk',  power: 10, hit: ['u', 'y', 'g'],      eff: { heal: 5 } },
+        { name: 'まだまだ',   g: 'st', cost: ['water'],                  kind: 'atk',  power: 10, hit: ['u', 'y', 'g'],      eff: { heal: 5 } },   // サブ
         { name: 'あかぞめ',   g: 'md', cost: ['rice', 'koji'],           kind: 'atk',  power: 25, hit: ['a', 'u'],           eff: { minus: 1 } },
         { name: 'ぐつぐつ',   g: 'md', cost: ['rice', 'heat'],           kind: 'atk',  power: 20, hit: ['u', 'y'],           eff: { plus: 10 } },
         { name: '秋田の底力', g: 'rm', cost: ['rice', 'rice', 'koji'],   kind: 'atk',  power: 35, hit: ['a'],                eff: { plus: 10 } },
         { name: 'おおむかし', g: 'rm', cost: ['rice', 'koji', 'water'],  kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 10 } },
-        { name: 'ご長寿',     g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 20, hit: ['s', 'a'],           eff: { healPlus: 10 } }
+        { name: 'ご長寿',     g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 20, hit: ['s', 'a'],           eff: { healPlus: 10 } } // サブ
       ]
     },
     {
-      id: 'k7', no: '7', emoji: '🍶', name: '協会7号', type: '🫧泡', hp: 105,
-      slots: ['rice', 'koji', 'koji', 'water', 'heat', 'wild'],
+      id: 'k7', no: '7', emoji: '🍶', name: '協会7号', type: '🫧泡', attr: 'koji', hp: 105,
+      slots: ['koji', 'koji', 'rice', 'water', 'heat', 'wild'],
       die: ['s', 's', 's', 'a', 'y', 'g'],
       star: [0, 2, 4, 6],
       moves: [
         { name: 'ぷくぷく',   g: 'st', cost: ['koji'],                   kind: 'atk',   power: 10, hit: ['s', 'a', 'y'],      eff: { plus: 5 } },
-        { name: 'そつなく',   g: 'st', cost: ['water'],                  kind: 'atk',   power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },
+        { name: 'そつなく',   g: 'st', cost: ['water'],                  kind: 'atk',   power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },  // サブ
         { name: '高泡',       g: 'md', cost: ['koji', 'rice'],           kind: 'atk',   power: 20, hit: ['s', 'a'],           eff: { plus: 10 } },
         { name: 'ふきこぼれ', g: 'md', cost: ['koji', 'koji'],           kind: 'atk',   power: 20, hit: ['s', 'y'],           eff: { minus: 1 } },
         { name: '真澄の一撃', g: 'rm', cost: ['koji', 'koji', 'water'],  kind: 'atk',   power: 35, hit: ['g'],                eff: { self: 10 } },
         { name: 'あわだらけ', g: 'rm', cost: ['koji', 'rice', 'heat'],   kind: 'atk',   power: 40, hit: ['y'],                eff: { plus: 10 } },
-        { name: 'きじゅん',   g: 'sp', cost: ['koji', 'heat'],           kind: 'guard', power: 0,  hit: ['s', 'g'],           eff: { heal: 10 } }
+        { name: 'きじゅん',   g: 'sp', cost: ['water', 'heat'],          kind: 'guard', power: 0,  hit: ['s', 'g'],           eff: { heal: 10 } }  // サブ
       ]
     },
     {
-      id: 'k9', no: '9', emoji: '🍈', name: '協会9号', type: '🌸香', hp: 95,
-      slots: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
+      id: 'k9', no: '9', emoji: '🍈', name: '協会9号', type: '🌸香', attr: 'water', hp: 95,
+      slots: ['water', 'water', 'rice', 'koji', 'heat', 'wild'],
       die: ['y', 'y', 'y', 's', 'a', 'g'],
       star: [0, 2, 4, 6],
       moves: [
         { name: '吟醸香',       g: 'st', cost: ['water'],                    kind: 'atk',  power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },
-        { name: 'ひとはだ',     g: 'st', cost: ['heat'],                     kind: 'atk',  power: 10, hit: ['s', 'a'],           eff: { plus: 5 } },
+        { name: 'ひとはだ',     g: 'st', cost: ['heat'],                     kind: 'atk',  power: 10, hit: ['s', 'a'],           eff: { plus: 5 } },  // サブ
         { name: '野白式',       g: 'md', cost: ['water', 'heat'],            kind: 'atk',  power: 25, hit: ['a', 'y'],           eff: { plus: 5 } },
-        { name: 'ねかせる',     g: 'md', cost: ['water', 'koji'],            kind: 'atk',  power: 20, hit: ['s', 'g'],           eff: { guard: true } },
+        { name: 'ねかせる',     g: 'md', cost: ['water', 'rice'],            kind: 'atk',  power: 20, hit: ['s', 'g'],           eff: { guard: true } },
         { name: '熊本の華',     g: 'rm', cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 35, hit: ['y'],                eff: { minus: 1 } },
         { name: 'おおころがり', g: 'rm', cost: ['water', 'water', 'koji'],   kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 15 } },
-        { name: '低温じっくり', g: 'sp', cost: ['koji', 'heat'],             kind: 'heal', power: 35, hit: ['s', 'y'],           eff: { healPlus: 10 } }
+        { name: '低温じっくり', g: 'sp', cost: ['koji', 'heat'],             kind: 'heal', power: 35, hit: ['s', 'y'],           eff: { healPlus: 10 } } // サブ
       ]
     },
     {
-      id: 'k10', no: '10', emoji: '❄️', name: '協会10号', type: '🫧泡', hp: 110,
-      slots: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
+      id: 'k10', no: '10', emoji: '❄️', name: '協会10号', type: '🫧泡', attr: 'rice', hp: 110,
+      slots: ['rice', 'rice', 'koji', 'water', 'heat', 'wild'],
       die: ['a', 'a', 'a', 's', 'y', 'u'],
       star: [0, 2, 4, 6],
       moves: [
-        { name: 'しんしん',     g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, hit: ['s', 'a', 'u'],      eff: { plus: 5 } },
-        { name: 'つらら',       g: 'st', cost: ['rice'],                    kind: 'atk',  power: 10, hit: ['a', 'u', 'y'],      eff: { plus: 5 } },
-        { name: '雪どけ',       g: 'md', cost: ['water', 'koji'],           kind: 'atk',  power: 20, hit: ['s', 'a'],           eff: { heal: 5 } },
-        { name: 'ゆきかき',     g: 'md', cost: ['water', 'heat'],           kind: 'atk',  power: 20, hit: ['u', 'y'],           eff: { plus: 10 } },
-        { name: '東北の底冷え', g: 'rm', cost: ['water', 'water', 'heat'],  kind: 'atk',  power: 35, hit: ['a'],                eff: { minus: 1 } },
-        { name: 'おおふぶき',   g: 'rm', cost: ['water', 'koji', 'heat'],   kind: 'atk',  power: 40, hit: ['s'],                eff: { plus: 10 } },
-        { name: '冬ごもり',     g: 'sp', cost: ['koji', 'heat'],            kind: 'heal', power: 20, hit: ['a', 'u'],           eff: { healPlus: 10 } }
+        { name: 'しんしん',     g: 'st', cost: ['rice'],                    kind: 'atk',  power: 10, hit: ['s', 'a', 'u'],      eff: { plus: 5 } },
+        { name: 'つらら',       g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, hit: ['a', 'u', 'y'],      eff: { plus: 5 } },  // サブ
+        { name: '雪どけ',       g: 'md', cost: ['rice', 'water'],           kind: 'atk',  power: 20, hit: ['s', 'a'],           eff: { heal: 5 } },
+        { name: 'ゆきかき',     g: 'md', cost: ['rice', 'heat'],            kind: 'atk',  power: 20, hit: ['u', 'y'],           eff: { plus: 10 } },
+        { name: '東北の底冷え', g: 'rm', cost: ['rice', 'rice', 'heat'],    kind: 'atk',  power: 35, hit: ['a'],                eff: { minus: 1 } },
+        { name: 'おおふぶき',   g: 'rm', cost: ['rice', 'koji', 'heat'],    kind: 'atk',  power: 40, hit: ['s'],                eff: { plus: 10 } },
+        { name: '冬ごもり',     g: 'sp', cost: ['koji', 'heat'],            kind: 'heal', power: 20, hit: ['a', 'u'],           eff: { healPlus: 10 } } // サブ
       ]
     },
     {
-      id: 'k14', no: '14', emoji: '🍏', name: '協会14号', type: '🌸香', hp: 105,
-      slots: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
+      id: 'k14', no: '14', emoji: '🍏', name: '協会14号', type: '🌸香', attr: 'water', hp: 105,
+      slots: ['water', 'water', 'rice', 'koji', 'heat', 'wild'],
       die: ['y', 'y', 's', 's', 'a', 'g'],
       star: [0, 2, 4, 6],
       moves: [
         { name: 'すっきり',   g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, hit: ['a', 'y', 'g'],      eff: { plus: 5 } },
-        { name: 'ひとやすみ', g: 'st', cost: ['koji'],                    kind: 'atk',  power: 10, hit: ['s', 'a', 'y'],      eff: { heal: 5 } },
-        { name: '金沢香',     g: 'md', cost: ['water', 'koji'],           kind: 'atk',  power: 20, hit: ['s', 'a'],           eff: { plus: 15 } },
-        { name: 'さらり',     g: 'md', cost: ['rice', 'heat'],            kind: 'atk',  power: 20, hit: ['a', 'y'],           eff: { minus: 1 } },
+        { name: 'ひとやすみ', g: 'st', cost: ['rice'],                    kind: 'atk',  power: 10, hit: ['s', 'a', 'y'],      eff: { heal: 5 } },  // サブ
+        { name: '金沢香',     g: 'md', cost: ['koji', 'heat'],            kind: 'atk',  power: 20, hit: ['s', 'a'],           eff: { plus: 15 } }, // サブ
+        { name: 'さらり',     g: 'md', cost: ['water', 'heat'],           kind: 'atk',  power: 20, hit: ['a', 'y'],           eff: { minus: 1 } },
         { name: '酸なしの美', g: 'rm', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 30, hit: ['y'],                eff: { plus: 10 } },
         { name: 'おおみず',   g: 'rm', cost: ['water', 'water', 'heat'],  kind: 'atk',  power: 40, hit: ['a'],                eff: { plus: 10 } },
         { name: '北陸の水',   g: 'sp', cost: ['water', 'heat'],           kind: 'heal', power: 20, hit: ['y', 'g'],           eff: { healPlus: 5 } }
       ]
     },
     {
-      id: 'k1801', no: '1801', emoji: '🧬', name: '協会1801号', type: '🌸香', hp: 105,
+      id: 'k1801', no: '1801', emoji: '🧬', name: '協会1801号', type: '🌸香', attr: 'koji', hp: 105,
       ability: { name: 'ロマン', failSelf: 10 }, // 技が失敗すると自分に10
-      slots: ['rice', 'koji', 'koji', 'water', 'heat', 'wild'],
+      slots: ['koji', 'koji', 'rice', 'water', 'heat', 'wild'],
       die: ['g', 'g', 'y', 'y', 's', 'a'],
       star: [0, 2, 4, 6],
       moves: [
         { name: 'セルレニン耐性',   g: 'st', cost: ['koji'],                   kind: 'atk',  power: 10, hit: ['a', 'y', 'g'],      eff: { plus: 5 } },
-        { name: 'よくばり',         g: 'st', cost: ['heat'],                   kind: 'atk',  power: 10, hit: ['a', 'y'],           eff: { plus: 5 } },
+        { name: 'よくばり',         g: 'st', cost: ['rice'],                   kind: 'atk',  power: 10, hit: ['a', 'y'],           eff: { plus: 5 } },  // サブ
         { name: 'ハイブリッド',     g: 'md', cost: ['koji', 'water'],          kind: 'atk',  power: 30, hit: ['y', 'g'],           eff: { plus: 5 } },
         { name: 'ふんばる',         g: 'md', cost: ['koji', 'koji'],           kind: 'atk',  power: 20, hit: ['y'],                eff: { guard: true } },
         { name: 'りんご香バースト', g: 'rm', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 10 } },
         { name: 'ぜんぶだす',       g: 'rm', cost: ['koji', 'heat', 'heat'],   kind: 'atk',  power: 45, hit: ['a'],                eff: { self: 10 } },
-        { name: '親ゆずり',         g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 35, hit: ['s', 'a'],           eff: { healPlus: 20 } }
+        { name: '親ゆずり',         g: 'sp', cost: ['water', 'heat'],          kind: 'heal', power: 35, hit: ['s', 'a'],           eff: { healPlus: 20 } } // サブ
       ]
     }
   ];
@@ -159,14 +180,17 @@
     for (var i = 0; i < CHARS.length; i++) if (CHARS[i].id === id) return CHARS[i];
     return null;
   }
+  // その技が「属性技」か（自分の属性を1個以上含む）。図鑑・ドキュメント生成用
+  function isAttrMove(char, move) { return move.cost.indexOf(char.attr) >= 0; }
 
   // ---- エネコロの組み立て --------------------------------------------------
-  // 2026-09-04（v3.1）: エネコロは **左・中・右の3個**。表示順＝振るときの並び。
-  // v4（2026-09-04・ユーザー裁定）: **固定2面を廃止し、6面すべてカスタム可**にした。
-  // 3個それぞれが「素の6面」を持ち、チップは1個ずつ・1面ずつ別々にはめられる（スロットは 6×3＝18）。
-  // 素の6面は全キャラ共通で 🌾🍚💧🔥✨ ＋ 得意エネ1枚。上限（✨1面 / 同エネ2面）は据え置き。
+  // エネコロは **左・中・右の3個**。表示順＝振るときの並び。
+  // v5（2026-09-04・ユーザー裁定）: **固定2面を復活**。
+  //   スロット0・1 = 固定面（そのキャラの属性×2。チップは置けない）
+  //   スロット2〜5 = カスタム4面（初期値は残り2属性＋🔥＋✨）
   var DICE_N = 3;
   var SLOTS_N = 6;
+  var FIXED_N = 2;
   var DICE_LABEL = ['左', '中', '右'];
   function emptyRow() {
     var r = [], i;
@@ -174,24 +198,24 @@
     return r;
   }
 
-  // 面の値は「エネキーの配列」: ['koji'] / ['wild']（2エネ面は2026-09-03に廃止）
-  // chips1 = ダイス1個ぶんの6スロット（null=素の面 / チップキー）
+  // 面の値は「エネキーの配列」: ['koji'] / ['wild']
+  // chips1 = ダイス1個ぶんの6スロット（null=素の面 / チップキー。固定2面は常に null）
   function buildDie(char, chips1) {
     var faces = [], i;
     for (i = 0; i < char.slots.length; i++) {
-      var c = chips1 && chips1[i];
+      var c = (i >= FIXED_N) ? (chips1 && chips1[i]) : null;
       faces.push(c && CHIPS[c] ? CHIPS[c].face.slice() : [char.slots[i]]);
     }
     return faces;
   }
-  // chips を必ず「3個 × 6スロット」に整える。形が合わないもの（v3以前の4スロット等）は
-  // 素の面（null）に落とすだけで例外は出さない。セーブ側は v を上げて丸ごと初期化する。
+  // chips を必ず「3個 × 6スロット」に整える。形が合わないものは素の面（null）に落とすだけで例外は出さない。
+  // 固定2面は問答無用で null（旧セーブがチップを持っていても捨てる）。
   function normalizeChips(chips) {
     var out = [], i, j;
     for (i = 0; i < DICE_N; i++) {
       var src = chips && chips[i];
       var row = emptyRow();
-      if (src && src.length === SLOTS_N) for (j = 0; j < SLOTS_N; j++) row[j] = src[j] || null;
+      if (src && src.length === SLOTS_N) for (j = FIXED_N; j < SLOTS_N; j++) row[j] = src[j] || null;
       out.push(row);
     }
     return out;
@@ -210,29 +234,29 @@
   function facesSig(faces) {
     return faces.map(function (f) { return f.join('+'); }).join(',');
   }
-  // 3個ぶんの面シグネチャ（確率キャッシュのキーに使う。個ごとに面が違うので3個ぶん要る）
+  // 3個ぶんの面シグネチャ（確率キャッシュのキーに使う）
   function diceSig(dice) {
     return dice.map(facesSig).join('/');
   }
 
-  // ---- カスタム上限（spec_v3.md §2.1・2026-09-03 / v4で固定2面の但し書きだけ削除） ----
-  // 同じ種類のエネは1ダイスに2面まで（🌾🍚💧🔥それぞれ）。✨は1ダイスに1面まで。
-  // v4: 固定2面が無くなったので「6面ぜんぶ」を数える。素の6面はどのキャラも上限ちょうど内に収まる。
-  var LIMIT = { rice: 2, koji: 2, water: 2, heat: 2, wild: 1 };
+  // ---- カスタム上限（v5で緩めた・spec_v5.md §2.1） -------------------------
+  // 同じ種類のエネは **1個につき3面まで**（固定2面込み）。✨は1個につき1面まで。
+  // 「素の面と同じチップは置けない」は据え置き。固定2面（スロット0・1）にはそもそも置けない。
+  var LIMIT = { rice: 3, koji: 3, water: 3, heat: 3, wild: 1 };
   var LIMIT_MSG = {
-    rice: '🌾は2面まで', koji: '🍚は2面まで', water: '💧は2面まで', heat: '🔥は2面まで',
+    rice: '🌾は3面まで', koji: '🍚は3面まで', water: '💧は3面まで', heat: '🔥は3面まで',
     wild: '✨は1面まで'
   };
-  // 素の面と同じ種類のチップはそのスロットに置けない（面が変わらないのに在庫だけ減る＝レアの無駄使い。2026-09-04追加）
   var SAME_FACE_MSG = '同じ面です';
+  var FIXED_MSG = '固定の面';
+  function isFixedSlot(slot) { return slot < FIXED_N; }
   function isSameAsNativeFace(char, slot, chipKey) {
     return !!(chipKey && CHIPS[chipKey] && CHIPS[chipKey].face[0] === char.slots[slot]);
   }
 
-  // 上限は **1個ごと** に効く（v3.1）。3個とも同じ上限。
-  // スロット i の実効面（チップがあればその面・無ければ素の面）。chips1 = ダイス1個ぶん
+  // 上限は **1個ごと** に効く。3個とも同じ上限。
   function slotFace(char, chips1, i) {
-    var c = chips1 && chips1[i];
+    var c = (i >= FIXED_N) ? (chips1 && chips1[i]) : null;
     return (c && CHIPS[c]) ? CHIPS[c].face : [char.slots[i]];
   }
   // ダイス1個の6面（素の面 or チップ）を種類ごとに数える
@@ -244,7 +268,7 @@
     }
     return n;
   }
-  // ダイス1個ぶんの判定。OK/理由を返す（reason は空文字か LIMIT_MSG のどれか）
+  // ダイス1個ぶんの判定。OK/理由を返す
   function validateDie(char, chips1) {
     var n = countSlots(char, chips1);
     for (var k in LIMIT) {
@@ -263,6 +287,7 @@
   }
   // die 個目の slot に chipKey（null=はずす）をはめられるか（上限はその個の中だけで見る）
   function canPlaceChip(char, chips, die, slot, chipKey) {
+    if (isFixedSlot(slot)) return { ok: false, kind: 'fixed', reason: FIXED_MSG };
     if (isSameAsNativeFace(char, slot, chipKey)) {
       return { ok: false, kind: 'same', reason: SAME_FACE_MSG };
     }
@@ -270,17 +295,16 @@
     next[slot] = chipKey || null;
     return validateDie(char, next);
   }
-  // ダイス1個ぶんの上限違反・廃止チップを直す
+  // ダイス1個ぶんの上限違反・廃止チップ・固定面へのチップを直す
   function repairDie(char, chips1) {
     var cur = (chips1 && chips1.length === SLOTS_N) ? chips1.slice() : emptyRow();
     var removed = [], i;
-    // 廃止済み（CHIPSに無い）チップは素の面へ戻す。2026-09-03の2エネ廃止で出る旧セーブ対応
-    for (i = 0; i < cur.length; i++) {
-      if (cur[i] && !CHIPS[cur[i]]) cur[i] = null;
+    for (i = 0; i < FIXED_N; i++) cur[i] = null;              // 固定面は常に素の面
+    for (i = FIXED_N; i < cur.length; i++) {
+      if (cur[i] && !CHIPS[cur[i]]) cur[i] = null;            // 廃止済みチップ
     }
-    // 素の面と同じチップがはまっている旧セーブは外して在庫へ返す（2026-09-04のルール追加対応）
-    for (i = 0; i < cur.length; i++) {
-      if (cur[i] && isSameAsNativeFace(char, i, cur[i])) {
+    for (i = FIXED_N; i < cur.length; i++) {
+      if (cur[i] && isSameAsNativeFace(char, i, cur[i])) {    // 素の面と同じチップ
         removed.push(cur[i]);
         cur[i] = null;
       }
@@ -288,19 +312,18 @@
     var guard = 0, v;
     while (!(v = validateDie(char, cur)).ok && guard++ < SLOTS_N + 2) {
       var done = false;
-      for (i = cur.length - 1; i >= 0 && !done; i--) {
+      for (i = cur.length - 1; i >= FIXED_N && !done; i--) {
         var c = cur[i];
         if (!c || !CHIPS[c]) continue;
         if (CHIPS[c].face[0] === v.kind) {
           removed.push(c); cur[i] = null; done = true;
         }
       }
-      if (!done) break; // 外せるチップが無い（素の面だけの違反＝起きない）
+      if (!done) break; // 外せるチップが無い（固定面だけの違反＝起きない）
     }
     return { chips: cur, removed: removed };
   }
-  // 3個ぶんまとめて直す（形の合わない入力は normalizeChips が素の面に落とす）
-  // 戻り値 { chips: 直した3個×6スロット, removed: [外したチップキー]（在庫に戻せるもののみ） }
+  // 3個ぶんまとめて直す
   function repairSlots(char, chips) {
     var cs = normalizeChips(chips), out = [], removed = [];
     for (var i = 0; i < DICE_N; i++) {
@@ -310,9 +333,6 @@
     }
     return { chips: out, removed: removed };
   }
-
-  // CPUの周回強化（spec_v3.md §3.1・段2）は実測で効果が無く2026-09-03に削除した。
-  // 詳しい経緯は spec_v3.md §3.1 参照。cpuLapChips は廃止（呼び出し側もあわせて削除済み）。
 
   // 出撃するキャラ（＝素のキャラ定義＋選んだ4技＋組み立てたエネコロ3個×6面）
   // load = { moves:[i,i,i,i], chips:[[左6],[中6],[右6]] }。省略時は★4技＋素の面
@@ -328,7 +348,7 @@
     for (var i = 0; i < mi.length; i++) moves.push(base.moves[mi[i]]);
     return {
       base: base, id: base.id, no: base.no, emoji: base.emoji, name: base.name,
-      type: base.type, hp: base.hp, ability: base.ability, die: base.die,
+      type: base.type, attr: base.attr, hp: base.hp, ability: base.ability, die: base.die,
       moveIdx: mi.slice(), chips: chips,
       energy: dice,                       // [左6面, 中6面, 右6面]
       moves: moves,
@@ -341,24 +361,20 @@
   function rnd(rng) { return (rng || Math.random)(); }
   function pick(arr, rng) { return arr[Math.floor(rnd(rng) * arr.length)]; }
 
-  // キャラコロを1個振る → 向きキー
   function rollChar(char, rng) { return pick(char.die, rng); }
   // エネコロを左から n 個振る → 面（エネキー配列）の配列
-  // 個ごとに面構成が違うので、i 番目のダイスの面から引く。
-  // n=2（先攻1手目）は左・中、n=1（-1が重なった下限）は左だけ＝右から振れなくなる
   function rollEnergy(char, n, rng) {
     var out = [];
     for (var i = 0; i < n; i++) out.push(pick(char.energy[i], rng));
     return out;
   }
 
-  // コスト（エネキーの配列）が出目で払えるか。
-  // faces は「面の配列」で、各面が ['koji'] や ['koji','koji'] や ['wild']。✨は不足分の穴埋めに使える
+  // コスト（エネキーの配列）が出目で払えるか。✨は不足分の穴埋めに使える
   function matchCost(cost, faces) {
     var have = {}, i, j, wild = 0, f;
     for (i = 0; i < faces.length; i++) {
       f = faces[i];
-      if (typeof f === 'string') f = [f]; // 単一キーで渡されても受ける
+      if (typeof f === 'string') f = [f];
       for (j = 0; j < f.length; j++) {
         if (f[j] === WILD) wild++;
         else have[f[j]] = (have[f[j]] || 0) + 1;
@@ -372,8 +388,6 @@
   }
 
   // ---- 確率（6^n の厳密列挙・3個それぞれの面が違う前提） -------------------
-  // n=3 なら左・中・右の 6×6×6、n=2 なら左・中の 6×6、n=1 なら左の 6 通り。
-  // キャッシュキーの pkey には3個ぶんの面シグネチャが入っている（diceSig）
   var _probCache = {};
   function probCacheFor(pkey) {
     return _probCache[pkey] || (_probCache[pkey] = {});
@@ -402,7 +416,6 @@
     return c / char.die.length;
   }
 
-  // 当たり目の集合は該当する漢字を全部、静→湧→沸→躍→極の順に区切りなしで並べる
   function hitLabel(hit) {
     var set = typeof hit === 'string' ? [hit] : hit;
     var idx = set.map(function (k) { return ORIENT_ORDER.indexOf(k); })
@@ -412,12 +425,10 @@
   }
 
   // ---- 蔵めぐりの報酬 ------------------------------------------------------
-  // ドロップ表（6面）: 倒した相手のタイプに寄る。寄りエネ 泡→🍚 / 香→💧
   var DROP = {
     awa:   ['koji', 'koji', 'koji', 'rice', 'water', 'heat'],
     kaori: ['water', 'water', 'water', 'rice', 'koji', 'heat']
   };
-  // レア枠（3勝ごと）。2エネ廃止（2026-09-03）でレアは✨だけになった
   var RARE = ['wild'];
 
   function typeKey(char) { return char.type.indexOf('泡') >= 0 ? 'awa' : 'kaori'; }
@@ -425,7 +436,6 @@
   function rollRare(rng) { return pick(RARE, rng); }
 
   // ---- 状態 ----------------------------------------------------------------
-  // loadA / loadB を渡すと「選んだ4技＋カスタム面」で出撃する（省略＝★4技＋素の面）
   function newState(charA, charB, rng, loadA, loadB) {
     var a = buildFighter(charA, loadA);
     var b = buildFighter(charB, loadB);
@@ -434,9 +444,9 @@
       chars: [a, b],
       hp: [a.hp, b.hp],
       maxHp: [a.hp, b.hp],
-      lastMove: [-1, -1],     // 前の手番に使った技（次の手番は選べない）
-      energyMinus: [false, false], // 相手の次エネコロ-1（重複しない）
-      halveNext: [false, false],   // 次に受けるダメージ半減
+      lastMove: [-1, -1],
+      energyMinus: [false, false],
+      halveNext: [false, false],
       turnCount: [0, 0],
       first: first,
       turn: first,
@@ -452,7 +462,6 @@
     return Math.max(1, n);
   }
 
-  // 選べる技（前の手番に使った技は除外）
   function availableMoves(state, side) {
     var out = [];
     for (var i = 0; i < state.chars[side].moves.length; i++) {
@@ -461,11 +470,18 @@
     return out;
   }
 
-  // ---- CPU（spec通り：期待ダメージ最大・前手番の技除外・HP30%以下で回復） --
+  // 3すくみのボーナス（攻撃技・成功時のみ・固定+5）。フラグOFFなら0
+  function advBonus(state, side) {
+    if (!advOn) return 0;
+    return hasAdv(state.chars[side].attr, state.chars[1 - side].attr) ? ADV_BONUS : 0;
+  }
+
+  // ---- CPU（期待ダメージ最大・前手番の技除外・HP30%以下で回復） -----------
   function cpuChoose(state, side) {
     var me = state.chars[side], foe = 1 - side;
     var n = energyCount(state, side);
     var avail = availableMoves(state, side);
+    var adv = advBonus(state, side);
     var i, mi, mv, best = avail[0], bestVal = -1;
     var canKill = false, healIdx = -1;
 
@@ -475,26 +491,24 @@
       var val = 0;
       if (mv.kind === 'atk') {
         var plus = mv.eff && mv.eff.plus ? mv.eff.plus : 0;
-        val = p * (mv.power + orientProb(me, mv.hit) * plus);
-        if (mv.power + plus >= state.hp[foe]) canKill = true;
+        val = p * (mv.power + adv + orientProb(me, mv.hit) * plus);
+        if (mv.power + plus + adv >= state.hp[foe]) canKill = true;
       } else {
-        healIdx = mi; // 回復・守り技（期待ダメージは0）
+        healIdx = mi;
       }
       if (val > bestVal) { bestVal = val; best = mi; }
     }
 
-    // 瀕死かつ倒しきれないなら回復技（回復系のみ。守り技は対象外）
     if (state.hp[side] <= state.maxHp[side] * 0.3 && !canKill) {
       for (i = 0; i < avail.length; i++) {
         if (me.moves[avail[i]].kind === 'heal') return avail[i];
       }
-      if (healIdx >= 0) return healIdx; // 回復技が無ければ守り技
+      if (healIdx >= 0) return healIdx;
     }
     return best;
   }
 
   // ---- 1手番の解決 ---------------------------------------------------------
-  // 戻り値: 何が起きたかの記録（UI・simが読む）
   function resolveTurn(state, moveIdx, rng) {
     if (state.over) return null;
     var side = state.turn, foe = 1 - side;
@@ -506,17 +520,19 @@
     var faces = rollEnergy(me, n, rng);
     var success = matchCost(mv.cost, faces);
     var hit = success && mv.hit.indexOf(orient) >= 0; // 当たり目効果は成功時のみ
+    var adv = (mv.kind === 'atk') ? advBonus(state, side) : 0;
 
     var r = {
       side: side, moveIdx: moveIdx, move: mv, n: n,
       orient: orient, faces: faces, success: success, orientHit: hit,
-      damage: 0, selfDamage: 0, heal: 0, guard: false, minus: false, halved: false
+      damage: 0, selfDamage: 0, heal: 0, guard: false, minus: false, halved: false, adv: false
     };
 
     var eff = mv.eff || {};
     if (success) {
       if (mv.kind === 'atk') {
-        var dmg = mv.power + (hit && eff.plus ? eff.plus : 0);
+        var dmg = mv.power + (hit && eff.plus ? eff.plus : 0) + adv;
+        if (adv) r.adv = true;
         r.damage = applyDamage(state, foe, dmg, r);
         if (hit && eff.self) r.selfDamage = eff.self;
         if (hit && eff.heal) r.heal = healSide(state, side, eff.heal);
@@ -529,12 +545,11 @@
         if (hit && eff.heal) r.heal = healSide(state, side, eff.heal);
       }
     } else {
-      // しずく（5ダメージ）
+      // しずく（5ダメージ）。3すくみのボーナスは乗せない（攻撃技の成功時だけ）
       r.damage = applyDamage(state, foe, 5, r);
       if (me.ability && me.ability.failSelf) r.selfDamage = me.ability.failSelf;
     }
 
-    // 「自分にN」は半減の対象外
     if (r.selfDamage) state.hp[side] -= r.selfDamage;
 
     state.lastMove[side] = moveIdx;
@@ -547,7 +562,6 @@
     return r;
   }
 
-  // 相手にダメージ。半減を持っていれば半分（切り上げ）にして消費（しずくでも消費）
   function applyDamage(state, target, dmg, r) {
     if (state.halveNext[target]) {
       dmg = Math.ceil(dmg / 2);
@@ -565,7 +579,6 @@
   }
 
   // ---- 通し対戦（sim用） ---------------------------------------------------
-  // opts: {first:0|1, cap:N, loadA:{...}, loadB:{...}}
   function simulateBattle(charA, charB, rng, opts) {
     opts = opts || {};
     var st = newState(charA, charB, rng, opts.loadA, opts.loadB);
@@ -581,14 +594,14 @@
     }
     var winner = st.winner;
     var timeout = false;
-    if (winner == null) { // 打ち切り：HP割合が高い方を勝ちにする
+    if (winner == null) {
       timeout = true;
       var ra = st.hp[0] / st.maxHp[0], rb = st.hp[1] / st.maxHp[1];
       winner = ra === rb ? 0 : (ra > rb ? 0 : 1);
     }
     return {
       winner: winner, first: st.first, timeout: timeout,
-      turns: declared,                       // 片側の手番数
+      turns: declared,
       turnsPerSide: (declared[0] + declared[1]) / 2,
       declared: declared[0] + declared[1],
       success: succ[0] + succ[1],
@@ -599,10 +612,14 @@
 
   return {
     CHARS: CHARS, ORIENT: ORIENT, ORIENT_ORDER: ORIENT_ORDER, ENERGY: ENERGY, WILD: WILD,
+    ATTR: ATTR, ATTR_ORDER: ATTR_ORDER, TYPE_ADV: TYPE_ADV, ADV_BONUS: ADV_BONUS,
+    attrLabel: attrLabel, hasAdv: hasAdv, setTypeAdv: setTypeAdv, typeAdvOn: typeAdvOn,
+    isAttrMove: isAttrMove,
     CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP, RARE: RARE,
-    START_PICK: START_PICK, startChips: startChips,
-    LIMIT: LIMIT, LIMIT_MSG: LIMIT_MSG,
-    DICE_N: DICE_N, SLOTS_N: SLOTS_N, DICE_LABEL: DICE_LABEL,
+    START_CHIPS: START_CHIPS, startChips: startChips,
+    LIMIT: LIMIT, LIMIT_MSG: LIMIT_MSG, FIXED_MSG: FIXED_MSG, SAME_FACE_MSG: SAME_FACE_MSG,
+    DICE_N: DICE_N, SLOTS_N: SLOTS_N, FIXED_N: FIXED_N, DICE_LABEL: DICE_LABEL,
+    isFixedSlot: isFixedSlot,
     validateSlots: validateSlots, validateDie: validateDie, canPlaceChip: canPlaceChip,
     repairSlots: repairSlots, repairDie: repairDie,
     countSlots: countSlots, slotFace: slotFace, normalizeChips: normalizeChips,
