@@ -70,8 +70,8 @@
       die: ['s', 's', 's', 'a', 'y', 'g'],
       star: [0, 2, 4, 6],
       moves: [
-        { name: 'ぷくぷく',   g: 'st', cost: ['koji'],                   kind: 'atk',   power: 10, hit: ['s', 'a', 'u'],      eff: { plus: 5 } },
-        { name: 'そつなく',   g: 'st', cost: ['water'],                  kind: 'atk',   power: 10, hit: ['u', 'y', 'g'],      eff: { plus: 5 } },
+        { name: 'ぷくぷく',   g: 'st', cost: ['koji'],                   kind: 'atk',   power: 10, hit: ['s', 'a'],           eff: { plus: 5 } },
+        { name: 'そつなく',   g: 'st', cost: ['water'],                  kind: 'atk',   power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },
         { name: '高泡',       g: 'md', cost: ['koji', 'rice'],           kind: 'atk',   power: 20, hit: ['s', 'a'],           eff: { plus: 10 } },
         { name: 'ふきこぼれ', g: 'md', cost: ['koji', 'koji'],           kind: 'atk',   power: 20, hit: ['s', 'a'],           eff: { minus: 1 } },
         { name: '真澄の一撃', g: 'rm', cost: ['koji', 'koji', 'water'],  kind: 'atk',   power: 35, hit: ['g'],                eff: { self: 10 } },
@@ -86,8 +86,8 @@
       die: ['y', 'y', 'y', 's', 'a', 'g'],
       star: [0, 2, 4, 6],
       moves: [
-        { name: '吟醸香',       g: 'st', cost: ['water'],                    kind: 'atk',  power: 10, hit: ['u', 'y', 'g'],      eff: { plus: 5 } },
-        { name: 'ひとはだ',     g: 'st', cost: ['heat'],                     kind: 'atk',  power: 10, hit: ['s', 'a', 'u'],      eff: { plus: 5 } },
+        { name: '吟醸香',       g: 'st', cost: ['water'],                    kind: 'atk',  power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },
+        { name: 'ひとはだ',     g: 'st', cost: ['heat'],                     kind: 'atk',  power: 10, hit: ['s', 'a'],           eff: { plus: 5 } },
         { name: '野白式',       g: 'md', cost: ['water', 'heat'],            kind: 'atk',  power: 15, hit: ['y', 'g'],           eff: { plus: 5 } },
         { name: 'ねかせる',     g: 'md', cost: ['water', 'koji'],            kind: 'atk',  power: 20, hit: ['s', 'a'],           eff: { guard: true } },
         { name: '熊本の華',     g: 'rm', cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 35, hit: ['y'],                eff: { minus: 1 } },
@@ -118,8 +118,8 @@
       die: ['y', 'y', 's', 's', 'a', 'g'],
       star: [0, 2, 4, 6],
       moves: [
-        { name: 'すっきり',   g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, hit: ['u', 'y', 'g'],      eff: { plus: 5 } },
-        { name: 'ひとやすみ', g: 'st', cost: ['koji'],                    kind: 'atk',  power: 10, hit: ['s', 'a', 'u'],      eff: { heal: 5 } },
+        { name: 'すっきり',   g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },
+        { name: 'ひとやすみ', g: 'st', cost: ['koji'],                    kind: 'atk',  power: 10, hit: ['s', 'a'],           eff: { heal: 5 } },
         { name: '金沢香',     g: 'md', cost: ['water', 'koji'],           kind: 'atk',  power: 20, hit: ['s', 'a'],           eff: { plus: 15 } },
         { name: 'さらり',     g: 'md', cost: ['rice', 'heat'],            kind: 'atk',  power: 20, hit: ['y', 'g'],           eff: { minus: 1 } },
         { name: '酸なしの美', g: 'rm', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 30, hit: ['y'],                eff: { plus: 10 } },
@@ -135,10 +135,10 @@
       die: ['g', 'g', 'y', 'y', 's', 'a'],
       star: [0, 2, 4, 6],
       moves: [
-        { name: 'セルレニン耐性',   g: 'st', cost: ['koji'],                   kind: 'atk',  power: 10, hit: ['u', 'y', 'g'],      eff: { plus: 5 } },
-        { name: 'よくばり',         g: 'st', cost: ['heat'],                   kind: 'atk',  power: 10, hit: ['a', 'u', 'y'],      eff: { plus: 5 } },
+        { name: 'セルレニン耐性',   g: 'st', cost: ['koji'],                   kind: 'atk',  power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },
+        { name: 'よくばり',         g: 'st', cost: ['heat'],                   kind: 'atk',  power: 10, hit: ['a', 'y'],           eff: { plus: 5 } },
         { name: 'ハイブリッド',     g: 'md', cost: ['koji', 'water'],          kind: 'atk',  power: 15, hit: ['y', 'g'],           eff: { plus: 5 } },
-        { name: 'ふんばる',         g: 'md', cost: ['koji', 'koji'],           kind: 'atk',  power: 20, hit: ['u', 'y'],           eff: { guard: true } },
+        { name: 'ふんばる',         g: 'md', cost: ['koji', 'koji'],           kind: 'atk',  power: 20, hit: ['y'],                eff: { guard: true } },
         { name: 'りんご香バースト', g: 'rm', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 10 } },
         { name: 'ぜんぶだす',       g: 'rm', cost: ['koji', 'heat', 'heat'],   kind: 'atk',  power: 45, hit: ['a'],                eff: { self: 10 } },
         { name: '親ゆずり',         g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 30, hit: ['s', 'a'],           eff: { healPlus: 10 } }
