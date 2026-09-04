@@ -344,7 +344,7 @@
     try { s = JSON.parse(localStorage.getItem(SKEY)); } catch(e) { s = null; }
     if (!validSave(s)) s = freshSave();   // 壊れている・v3以前 → 丸ごと捨てて初期化（例外は出さない）
     E.CHARS.forEach(function(c){ s.dice[c.id] = E.normalizeChips(s.dice[c.id]); });
-    repairAllSlots(s);                    // 上限違反（1個ごとに ✨1面・同エネ2面）があれば素の面へ戻す
+    repairAllSlots(s);                    // 上限違反（1個ごとに 属性3面・他2面・✨1面）があれば素の面へ戻す
     if (s.run && s.run.lap == null) s.run.lap = 1;
     return s;
   }
@@ -548,7 +548,7 @@
     box.innerHTML = '';
     E.CHIP_ORDER.forEach(function(k){
       var n = save.chips[k], on = (cur === k);
-      // 上限（1個につき ✨1面・同エネ2面）に触れる置き換えはグレーにして選ばせない。理由を短く出す
+      // 上限（1個につき 属性3面・他のエネ2面・✨1面）に触れる置き換えはグレーにして選ばせない。理由を短く出す
       var chk = on ? { ok: true } : E.canPlaceChip(prepChar, save.dice[id], die, slot, k);
       var disabled = (!n && !on) || !chk.ok;
       var d = document.createElement('div');

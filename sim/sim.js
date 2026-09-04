@@ -11,10 +11,10 @@ var N = parseInt(process.argv[2], 10) || 2000;
 var V3 = process.argv.indexOf('--v3') >= 0;
 // --bring : 「初期チップ6枚の最良 vs 初期」だけを測り直す軽い経路
 var BRING_ONLY = process.argv.indexOf('--bring') >= 0 && !V3;
-// --noadv : 属性3すくみOFF（有利+5を無効に）。ON/OFF 両方を測るための切り替え
+// --noadv : 属性3すくみOFF（有利ボーナスを無効に）。ON/OFF 両方を測るための切り替え
 var NOADV = process.argv.indexOf('--noadv') >= 0;
 E.setTypeAdv(!NOADV);
-var ADVTAG = E.typeAdvOn() ? '3すくみON（有利+5）' : '3すくみOFF';
+var ADVTAG = E.typeAdvOn() ? '3すくみON（有利+' + E.ADV_BONUS + '）' : '3すくみOFF';
 var CH = E.CHARS;
 
 // 乱数（seed固定で再現できるようにする）
@@ -87,11 +87,12 @@ function runV2() {
   var ws = rows.map(function (r) { return r.winA; });
   console.log('- 勝率レンジ: ' + pc(Math.min.apply(null, ws)) + ' 〜 ' + pc(Math.max.apply(null, ws)));
 
-  // ---- 目標未達だけ列挙（spec.md「バランス目標」） ----
+  // ---- 目標未達だけ列挙（spec_v5.md「目標帯」: OFF=35〜65% / ON=30〜70%） ----
+  var LO = E.typeAdvOn() ? 0.30 : 0.35, HI = E.typeAdvOn() ? 0.70 : 0.65;
   var ng = [];
   rows.forEach(function (r) {
     var label = r.a.name + ' vs ' + r.b.name + '（先攻: ' + (r.first === 0 ? r.a.name : r.b.name) + (r.mirror ? '・ミラー' : '') + '）';
-    if (r.winA < 0.35 || r.winA > 0.65) ng.push('勝率 ' + pc(r.winA) + '（35〜65%外）: ' + label);
+    if (r.winA < LO || r.winA > HI) ng.push('勝率 ' + pc(r.winA) + '（' + (LO * 100) + '〜' + (HI * 100) + '%外）: ' + label);
     if (r.turns < 6 || r.turns > 10) ng.push('平均手番 ' + r.turns.toFixed(1) + '（6〜10外）: ' + label);
     if (r.succ < 0.40 || r.succ > 0.70) ng.push('成功率 ' + pc(r.succ) + '（40〜70%外）: ' + label);
     if (r.mirror) {

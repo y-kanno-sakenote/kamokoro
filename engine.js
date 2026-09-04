@@ -41,7 +41,7 @@
   // 3すくみ: **麹→米→水→麹**（麹が米を糖化する／米が水を吸う／水が麹を溶かす）
   // TYPE_ADV[攻める属性] = その属性が有利を取れる相手の属性
   var TYPE_ADV = { koji: 'rice', rice: 'water', water: 'koji' };
-  var ADV_BONUS = 5;      // 有利な側は「攻撃技の成功時ダメージ +5」（固定。倍率にしない）
+  var ADV_BONUS = 2;      // 有利な側は「攻撃技の成功時ダメージ +2」（固定。倍率にしない。2026-09-05 実測で +5→+3→+2 と下げて確定）
   var advOn = true;       // 既定ON。sim で ON/OFF 両方を測るための切り替え
   function setTypeAdv(on) { advOn = !!on; }
   function typeAdvOn() { return advOn; }
@@ -81,7 +81,7 @@
 
   var CHARS = [
     {
-      id: 'k6', no: '6', emoji: '🏺', name: '協会6号', type: '🫧泡', attr: 'rice', hp: 110,
+      id: 'k6', no: '6', emoji: '🏺', name: '協会6号', type: '🫧泡', attr: 'rice', hp: 105,
       // 素の6面（v5）= 固定2面（属性×2）＋ カスタム4面（残り2属性＋🔥＋✨）
       slots: ['rice', 'rice', 'koji', 'water', 'heat', 'wild'],
       die: ['s', 's', 'a', 'u', 'y', 'g'],
@@ -149,7 +149,7 @@
       moves: [
         { name: 'すっきり',   g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, hit: ['a', 'y', 'g'],      eff: { plus: 5 } },
         { name: 'ひとやすみ', g: 'st', cost: ['rice'],                    kind: 'atk',  power: 10, hit: ['s', 'a', 'y'],      eff: { heal: 5 } },  // サブ
-        { name: '金沢香',     g: 'md', cost: ['koji', 'heat'],            kind: 'atk',  power: 20, hit: ['s', 'a'],           eff: { plus: 15 } }, // サブ
+        { name: '金沢香',     g: 'md', cost: ['koji', 'heat'],            kind: 'atk',  power: 25, hit: ['s', 'a'],           eff: { plus: 15 } }, // サブ
         { name: 'さらり',     g: 'md', cost: ['water', 'heat'],           kind: 'atk',  power: 20, hit: ['a', 'y'],           eff: { minus: 1 } },
         { name: '酸なしの美', g: 'rm', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 30, hit: ['y'],                eff: { plus: 10 } },
         { name: 'おおみず',   g: 'rm', cost: ['water', 'water', 'heat'],  kind: 'atk',  power: 40, hit: ['a'],                eff: { plus: 10 } },
@@ -239,14 +239,20 @@
     return dice.map(facesSig).join('/');
   }
 
-  // ---- カスタム上限（v5で緩めた・spec_v5.md §2.1） -------------------------
-  // 同じ種類のエネは **1個につき3面まで**（固定2面込み）。✨は1個につき1面まで。
-  // 「素の面と同じチップは置けない」は据え置き。固定2面（スロット0・1）にはそもそも置けない。
-  var LIMIT = { rice: 3, koji: 3, water: 3, heat: 3, wild: 1 };
-  var LIMIT_MSG = {
-    rice: '🌾は3面まで', koji: '🍚は3面まで', water: '💧は3面まで', heat: '🔥は3面まで',
-    wild: '✨は1面まで'
-  };
+  // ---- カスタム上限（v5・2026-09-05 裁定で締めた・spec_v5.md §2.1） --------
+  // 同じ種類のエネを **3面まで積めるのは自分の属性だけ**（固定2面＋チップ1＝3面）。
+  // 他のエネ（他属性・🔥）は **1個につき2面まで**。✨は **1個につき1面まで**（据え置き）。
+  // 「素の面と同じチップは置けない」も据え置き。固定2面（スロット0・1）にはそもそも置けない。
+  var LIMIT_ATTR = 3, LIMIT_OTHER = 2, LIMIT_WILD = 1;
+  // そのキャラにとっての種類 kind の上限
+  function limitFor(char, kind) {
+    if (kind === WILD) return LIMIT_WILD;
+    return (char && char.attr === kind) ? LIMIT_ATTR : LIMIT_OTHER;
+  }
+  // 上限に引っかかったときの短い理由（属性かどうかで面数が変わる）
+  function limitMsg(char, kind) {
+    return (ENERGY[kind] ? ENERGY[kind].emoji : '') + 'は' + limitFor(char, kind) + '面まで';
+  }
   var SAME_FACE_MSG = '同じ面です';
   var FIXED_MSG = '固定の面';
   function isFixedSlot(slot) { return slot < FIXED_N; }
@@ -270,9 +276,10 @@
   }
   // ダイス1個ぶんの判定。OK/理由を返す
   function validateDie(char, chips1) {
-    var n = countSlots(char, chips1);
-    for (var k in LIMIT) {
-      if (n[k] > LIMIT[k]) return { ok: false, kind: k, reason: LIMIT_MSG[k] };
+    var n = countSlots(char, chips1), i, k;
+    for (i = 0; i < CHIP_ORDER.length; i++) {
+      k = CHIP_ORDER[i];
+      if (n[k] > limitFor(char, k)) return { ok: false, kind: k, reason: limitMsg(char, k) };
     }
     return { ok: true, kind: null, reason: '' };
   }
@@ -617,7 +624,9 @@
     isAttrMove: isAttrMove,
     CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP, RARE: RARE,
     START_CHIPS: START_CHIPS, startChips: startChips,
-    LIMIT: LIMIT, LIMIT_MSG: LIMIT_MSG, FIXED_MSG: FIXED_MSG, SAME_FACE_MSG: SAME_FACE_MSG,
+    LIMIT_ATTR: LIMIT_ATTR, LIMIT_OTHER: LIMIT_OTHER, LIMIT_WILD: LIMIT_WILD,
+    limitFor: limitFor, limitMsg: limitMsg,
+    FIXED_MSG: FIXED_MSG, SAME_FACE_MSG: SAME_FACE_MSG,
     DICE_N: DICE_N, SLOTS_N: SLOTS_N, FIXED_N: FIXED_N, DICE_LABEL: DICE_LABEL,
     isFixedSlot: isFixedSlot,
     validateSlots: validateSlots, validateDie: validateDie, canPlaceChip: canPlaceChip,
