@@ -104,31 +104,46 @@
   .stage.me{justify-content:flex-end}      /* 自分のHPバーのすぐ上 */
   .turnlb{font-size:12px;color:var(--sub);min-height:16px;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;max-width:100%}
-  .dicerow{display:flex;gap:12px;align-items:center;justify-content:center}
+  .dicerow{display:flex;gap:12px;align-items:center;justify-content:center;padding:9px 0}
   .ens{display:flex;gap:7px;align-items:center}
-  .die{border-radius:14px;background:var(--panel);border:3px solid var(--line);
-    display:flex;align-items:center;justify-content:center}
-  .die.big{width:76px;height:76px;font-size:40px;border-color:var(--accent)}
-  .die.en{width:46px;height:46px;border-radius:11px;font-size:24px}
-  .die.en.two{font-size:16px;letter-spacing:-1px}
+  /* 立方体ダイス: .die=枠（奥行き） / .cube=回る本体 / .f=6面 */
+  .die{position:relative;flex:none;perspective:520px}
+  .die.big{width:76px;height:76px;font-size:40px;--h:38px;--r:8px}
+  .die.en{width:46px;height:46px;font-size:24px;--h:23px;--r:7px}
+  .cube{position:absolute;inset:0;transform-style:preserve-3d;
+    transition:transform 520ms cubic-bezier(.22,.72,.3,1)}
+  .f{position:absolute;inset:0;border-radius:var(--r);background:var(--panel);
+    border:3px solid var(--line);display:flex;align-items:center;justify-content:center;
+    backface-visibility:hidden;-webkit-backface-visibility:hidden}
+  .die.big .f{border-color:var(--accent)}
+  .die.en .f{border-width:2px}
+  .f .two{font-size:.62em;letter-spacing:-1px}
+  .f .om{position:absolute;right:4px;bottom:2px;font-size:11px;font-style:normal;
+    line-height:1;color:var(--sub)}
+  .f0{transform:translateZ(var(--h))}
+  .f1{transform:rotateY(180deg) translateZ(var(--h))}
+  .f2{transform:rotateY(90deg) translateZ(var(--h))}
+  .f3{transform:rotateY(-90deg) translateZ(var(--h))}
+  .f4{transform:rotateX(90deg) translateZ(var(--h))}
+  .f5{transform:rotateX(-90deg) translateZ(var(--h))}
   .die.off{opacity:.22}
+  .die.bnc{animation:dbounce .18s ease-out}
+  @keyframes dbounce{0%{transform:translateY(0)}40%{transform:translateY(-5px)}100%{transform:translateY(0)}}
   /* 相手側は一回り小さく */
-  .stage.foe .die{border-width:2px}
-  .stage.foe .die.big{width:60px;height:60px;font-size:32px}
-  .stage.foe .die.en{width:37px;height:37px;border-radius:9px;font-size:19px}
-  .stage.foe .die.en.two{font-size:13px}
+  .stage.foe .die.big{width:60px;height:60px;font-size:32px;--h:30px;--r:7px}
+  .stage.foe .die.en{width:37px;height:37px;font-size:19px;--h:18.5px;--r:6px}
+  .stage.foe .die .f{border-width:2px}
+  .stage.foe .die.big .f .om{font-size:9px;right:3px;bottom:1px}
   /* 手番でない側は薄く残す（直前の出目は消さない） */
   .stage.dim .die{opacity:.4}
   .stage.dim .die.off{opacity:.12}
   .stage.dim .result{opacity:.45}
   .stage.dim .turnlb{opacity:.6}
-  .rolling{animation:tumble .6s ease-in-out}
-  @keyframes tumble{
-    0%{transform:rotate(0) translateY(0)}
-    20%{transform:rotate(-160deg) translateY(-14px)}
-    45%{transform:rotate(140deg) translateY(8px)}
-    70%{transform:rotate(-80deg) translateY(-6px)}
-    100%{transform:rotate(0) translateY(0)}}
+  /* 動きを減らす設定では回さずに即座に出目を出す */
+  @media (prefers-reduced-motion: reduce){
+    .cube{transition:none !important}
+    .die.bnc{animation:none !important}
+  }
   .result{font-size:17px;font-weight:700;min-height:22px;line-height:1.3;text-align:center}
   .stage.foe .result{font-size:14px;min-height:19px}
   /* 自分・相手の面構成（常時表示・確率は出さない） */
@@ -201,7 +216,7 @@
     <div class="stage foe dim" id="stage-foe">
       <div class="turnlb" id="lb-foe"></div>
       <div class="dicerow">
-        <div class="die big" id="dchar-foe">🧍</div>
+        <div class="die big" id="dchar-foe"></div>
         <div class="ens" id="denergy-foe"></div>
       </div>
       <div class="result" id="res-foe"></div>
@@ -212,7 +227,7 @@
     <div class="stage me dim" id="stage-me">
       <div class="turnlb" id="lb-me"></div>
       <div class="dicerow">
-        <div class="die big" id="dchar-me">🧍</div>
+        <div class="die big" id="dchar-me"></div>
         <div class="ens" id="denergy-me"></div>
       </div>
       <div class="result" id="res-me"></div>
@@ -538,8 +553,8 @@
     [ME, FOE].forEach(function(s){
       res(s).textContent = '';
       lb(s).textContent = '';
-      dchar(s).textContent = '🧍';
-      drawEnergySlots(s, 3);
+      buildDice(s, st.chars[s]);   // 面構成から作り直す
+      setEnergyActive(s, 3);
     });
     $('faces-me').textContent = '🎲 ' + facesLine(myF) + '　' + dieFaces(myF);
     $('faces-foe').textContent = '🎲 ' + facesLine(foeF) + '　' + dieFaces(foeF);
@@ -567,16 +582,102 @@
     });
   }
 
-  function drawEnergySlots(side, n, faces){
+  // ---------------- 立方体ダイス ----------------
+  // 面0=正面 1=裏 2=右 3=左 4=上 5=下。その面を正面に向ける回転 [x,y]
+  var CUBE_REST = [[0,0],[0,180],[0,-90],[0,90],[-90,0],[90,0]];
+  // 向きごとの止まり方（面を正面に向けたあと、画面の軸で傾ける）
+  var TILT = {
+    s: { x:0,   z:0   },   // 🧍立ち＝そのまま
+    y: { x:0,   z:90  },   // ↔️横向き＝Z軸で90度倒れる
+    g: { x:0,   z:180 },   // 🤸逆立ち＝180度
+    a: { x:25,  z:0   },   // 😴あおむけ＝X軸で奥に傾く
+    u: { x:-25, z:0   }    // 🙃うつぶせ＝手前に傾く
+    // 傾きは25度。深くすると隣の面が出た面と同じ大きさで見えて、ダイスが2個に見える
+  };
+  function reduced(){
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function setCube(el, x, y, z){
+    el._a = { x:x, y:y, z:z };
+    el._cube.style.transform = 'rotateZ('+z+'deg) rotateX('+x+'deg) rotateY('+y+'deg)';
+  }
+  function makeCube(el, faceHtml, start){
+    el.innerHTML = '';
+    var cube = document.createElement('div');
+    cube.className = 'cube';
+    for (var i = 0; i < 6; i++){
+      var f = document.createElement('div');
+      f.className = 'f f' + i;
+      f.innerHTML = faceHtml[i];
+      cube.appendChild(f);
+    }
+    el.appendChild(cube);
+    el._cube = cube;
+    el.classList.remove('bnc');
+    setCube(el, CUBE_REST[start||0][0], CUBE_REST[start||0][1], 0);
+  }
+  // 現在角から min 回転以上まわして、base と同じ向きで止まる角度
+  // （360の整数倍は行列として同じなので、出目は変わらない）
+  function spinTo(cur, base, turns){
+    return base + Math.ceil((cur - base) / 360) * 360 + 360 * turns;
+  }
+  // faceIdx の面を正面にして止める。tilt=向きの傾き、zt=Z軸の回転数
+  function rollCube(el, faceIdx, tilt, delay, dur, zt){
+    var rest = CUBE_REST[faceIdx] || CUBE_REST[0], t = tilt || TILT.s, cube = el._cube;
+    var x = rest[0] + t.x, y = rest[1], z = t.z;
+    el.classList.remove('bnc');
+    if (reduced()){                       // 回転を省いて即座に出目
+      cube.style.transitionDelay = '0ms';
+      setCube(el, x, y, z);
+      return;
+    }
+    var a = el._a;
+    x = spinTo(a.x, x, 2);
+    y = spinTo(a.y, y, 3);
+    z = spinTo(a.z, z, zt || 0);
+    cube.style.transitionDuration = dur + 'ms';
+    cube.style.transitionDelay = delay + 'ms';
+    setCube(el, x, y, z);
+    setTimeout(function(){                // 最後に小さくバウンド
+      el.classList.remove('bnc'); void el.offsetWidth; el.classList.add('bnc');
+    }, delay + dur - 30);
+  }
+  function enFaceHtml(f){
+    return '<span class="' + (f.length > 1 ? 'two' : '') + '">' + E.faceEmoji(f) + '</span>';
+  }
+  function charFaceHtml(c, k){
+    return '<span>' + c.emoji + '</span><i class="om">' + em(k) + '</i>';
+  }
+  // 面構成（チップ差し替え込み）から立方体を作る
+  function buildDice(side, c){
+    makeCube(dchar(side), c.die.map(function(k){ return charFaceHtml(c, k); }), 0);
     var box = dbox(side);
     box.innerHTML = '';
     for (var i = 0; i < 3; i++){
-      var f = faces && i < n ? faces[i] : null;
       var d = document.createElement('div');
-      d.className = 'die en' + (i >= n ? ' off' : '') + (f && f.length > 1 ? ' two' : '');
-      d.textContent = f ? E.faceEmoji(f) : '·';
+      d.className = 'die en';
       box.appendChild(d);
+      makeCube(d, c.energy.map(enFaceHtml), i);
     }
+  }
+  function setEnergyActive(side, n){
+    Array.prototype.forEach.call(dbox(side).children, function(d, i){
+      d.classList.toggle('off', i >= n);
+    });
+  }
+  // 出目に合う面を選ぶ（同じ面が複数あるならランダム）
+  function pickIdx(hits){
+    return hits.length ? hits[Math.floor(Math.random() * hits.length)] : 0;
+  }
+  function charFaceIdx(c, orient){
+    var h = [], i;
+    for (i = 0; i < c.die.length; i++) if (c.die[i] === orient) h.push(i);
+    return pickIdx(h);
+  }
+  function enFaceIdx(c, face){
+    var h = [], i, sig = face.join('+');
+    for (i = 0; i < c.energy.length; i++) if (c.energy[i].join('+') === sig) h.push(i);
+    return pickIdx(h);
   }
 
   function drawMoves(){
@@ -605,27 +706,26 @@
     lb(side).textContent = (side === ME ? '自分の' : '相手の') + '「' + mv.name + '」をねらう';
     res(side).textContent = '';
     dimStage(side);
-    drawEnergySlots(side, n);
+    setEnergyActive(side, n);
 
-    var dc = dchar(side);
-    dc.classList.remove('rolling'); void dc.offsetWidth; dc.classList.add('rolling');
-    Array.prototype.forEach.call(dbox(side).children, function(d){
-      d.classList.remove('rolling'); void d.offsetWidth; d.classList.add('rolling');
+    // 出目は先に engine が決め、その面が正面で止まるように転がす
+    var r = E.resolveTurn(st, moveIdx);
+    var rm = reduced(), dur = 520, step = 90;
+
+    rollCube(dchar(side), charFaceIdx(c, r.orient), TILT[r.orient], 0, dur, 1);
+    Array.prototype.forEach.call(dbox(side).children, function(d, i){
+      if (i < r.n) rollCube(d, enFaceIdx(c, r.faces[i]), null, step * i, dur, 0);
     });
 
-    var r = E.resolveTurn(st, moveIdx);
-
     setTimeout(function(){
-      dc.textContent = em(r.orient);
-      drawEnergySlots(side, r.n, r.faces);
       var line = describe(side, r);
       res(side).textContent = line;
       logs.push((side === ME ? '▶ ' : '◀ ') + line);
       var target = $(side === ME ? 'f-foe' : 'f-me');
       if (r.damage) { target.classList.remove('hit'); void target.offsetWidth; target.classList.add('hit'); }
       drawFighters(); drawLog();
-      setTimeout(done, 700);
-    }, 620);
+      setTimeout(done, rm ? 600 : 620);
+    }, rm ? 0 : dur + step * 2 + 30);
   }
 
   function describe(side, r){
