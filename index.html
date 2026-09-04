@@ -53,31 +53,14 @@
   .pv .o{font-size:11px;color:var(--accent);white-space:nowrap;width:76px;flex:none;text-align:right}
   .pv .wn{font-size:9px}
 
-  /* 準備: エネコロ3個（左・中・右）を3行で。1行＝固定2面＋カスタム4面 */
-  .dierow{display:flex;align-items:center;gap:6px;margin-top:4px}
-  .dierow .dl{font-size:11px;color:var(--sub);width:14px;flex:none;text-align:center}
-  .facebar{flex:1;display:flex;gap:5px}
-  .fs{flex:1;height:40px;border-radius:10px;background:var(--panel);border:2px solid var(--line);
+  /* 準備: エネコロ3個（左・中・右）を3行で。1行＝6面すべてカスタム可（v4で固定面は廃止） */
+  .dierow{display:flex;align-items:center;gap:5px;margin-top:4px}
+  .dierow .dl{font-size:11px;color:var(--sub);width:12px;flex:none;text-align:center}
+  .facebar{flex:1;display:flex;gap:4px}
+  .fs{flex:1;min-width:0;height:38px;border-radius:9px;background:var(--panel);border:2px solid var(--line);
     display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
-  .fs .v{font-size:21px;line-height:1}
-  .fs .v.two{font-size:15px;letter-spacing:-1px}
-  .fs.lock{opacity:.45;cursor:default}
+  .fs .v{font-size:19px;line-height:1}
   .fs.chip{border-color:var(--accent)}
-  .fs i{position:absolute;top:1px;right:3px;font-size:8px;font-style:normal;color:var(--sub)}
-  /* 準備: 持ち込みチップ（新しいセーブの最初の1回だけ出る） */
-  .bring{background:var(--panel);border:1px solid var(--accent);border-radius:11px;padding:7px 8px;margin-bottom:2px}
-  .bring .bt{font-size:11px;color:var(--sub);margin-bottom:5px}
-  .bring .bt span{color:var(--accent)}
-  .bring .brow{display:flex;gap:6px}
-  .bring .bb{flex:1;height:36px;border-radius:9px;background:var(--bg);border:1px solid var(--line);
-    display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer}
-  .bring .bb:active{transform:scale(.96)}
-  .bring .bb.z{opacity:.3;cursor:default}
-  .bring .got{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;min-height:26px;align-items:center}
-  .bring .got i{font-style:normal;font-size:18px;line-height:1.3;background:var(--bg);
-    border:1px solid var(--accent);border-radius:8px;padding:1px 7px;cursor:pointer}
-  .bring .got i.z{border-color:var(--line);opacity:.4;cursor:default}
-  .bring .got u{text-decoration:none;font-size:11px;color:var(--sub)}
   .inv{display:flex;flex-wrap:wrap;gap:4px 9px;font-size:11px;color:var(--sub);margin-top:6px;line-height:1.5}
   .inv span.z{opacity:.35}
   .inv b{color:var(--fg);font-weight:700}
@@ -213,10 +196,9 @@
   <section id="s-prep" class="screen">
     <div class="runbar" id="prep-run"></div>
     <div class="prow" id="prep-char"></div>
-    <div class="bring" id="prep-bring"></div>
     <div class="ttl">わざを4つえらぶ <span id="prep-cnt"></span></div>
     <div class="pool" id="prep-pool"></div>
-    <div class="ttl">エネコロ3個（左から振る・🔒はかえられない）</div>
+    <div class="ttl">エネコロ3個（左から振る・どの面もかえられる）</div>
     <div id="prep-dice"></div>
     <div class="inv" id="prep-inv"></div>
     <button class="btn" id="go">たたかう</button>
@@ -296,34 +278,32 @@
 
   // ---------------- 保存（localStorage・1キーだけ） ----------------
   var SKEY = 'kamoshi-koro:v3';
+  var SVER = 4;   // v4: エネコロが6面すべてカスタム可になり dice の形が変わった（v3のセーブは読まずに初期化）
   var save = null;
 
   function freshSave(){
-    var s = { v:3, chips:{}, dice:{}, moves:{}, run:null, picked:false };  // picked=持ち込み済み
-    E.CHIP_ORDER.forEach(function(k){ s.chips[k] = 0; });
+    var s = { v:SVER, chips: E.startChips(), dice:{}, moves:{}, run:null };
+    // 持ち込みチップ（v4）: 選ばせず、🌾🍚💧🔥を各1枚あらかじめ在庫に入れておく
     E.CHARS.forEach(function(c){
-      s.dice[c.id] = E.normalizeChips(null);   // 3個 × 4スロット（初期は3個とも素の面）
+      s.dice[c.id] = E.normalizeChips(null);   // 3個 × 6スロット（初期は3個とも素の面）
       s.moves[c.id] = c.star.slice();
     });
     return s;
   }
-  // スロット4つ（null か チップキーの文字列）
+  // スロット6つ（null か チップキーの文字列）
   function okSlots(a){
-    if (!Array.isArray(a) || a.length !== 4) return false;
-    for (var i = 0; i < 4; i++) if (a[i] !== null && typeof a[i] !== 'string') return false;
+    if (!Array.isArray(a) || a.length !== E.SLOTS_N) return false;
+    for (var i = 0; i < E.SLOTS_N; i++) if (a[i] !== null && typeof a[i] !== 'string') return false;
     return true;
   }
-  // dice は「3個 × 4スロット」。旧セーブの「1個ぶんの4スロット」も通す（loadSaveで3個に複製する）
+  // dice は「3個 × 6スロット」。形が違えば validSave が false ＝丸ごと初期化（v3以前は読まない）
   function okDice(d){
-    if (!Array.isArray(d)) return false;
-    if (d.length === 4 && !Array.isArray(d[0])) return okSlots(d);   // 旧形式
-    if (d.length !== E.DICE_N) return false;
+    if (!Array.isArray(d) || d.length !== E.DICE_N) return false;
     for (var i = 0; i < E.DICE_N; i++) if (!okSlots(d[i])) return false;
     return true;
   }
   function validSave(s){
-    if (!s || s.v !== 3 || !s.chips || !s.dice || !s.moves) return false;
-    if (s.picked != null && typeof s.picked !== 'boolean') return false;   // 旧セーブは picked 無し＝持ち込み済み扱い
+    if (!s || s.v !== SVER || !s.chips || !s.dice || !s.moves) return false;
     var i, ok = true;
     for (i = 0; i < E.CHIP_ORDER.length; i++){
       var n = s.chips[E.CHIP_ORDER[i]];
@@ -354,12 +334,10 @@
   function loadSave(){
     var s = null;
     try { s = JSON.parse(localStorage.getItem(SKEY)); } catch(e) { s = null; }
-    if (!validSave(s)) s = freshSave();   // 壊れていたら丸ごと捨てて初期化
-    // 旧セーブ（エネコロ1種類ぶんの4スロット）は3個に複製して読み込む
+    if (!validSave(s)) s = freshSave();   // 壊れている・v3以前 → 丸ごと捨てて初期化（例外は出さない）
     E.CHARS.forEach(function(c){ s.dice[c.id] = E.normalizeChips(s.dice[c.id]); });
     repairAllSlots(s);                    // 上限違反（1個ごとに ✨1面・同エネ2面）があれば素の面へ戻す
-    if (s.run && s.run.lap == null) s.run.lap = 1; // 旧セーブ互換
-    if (s.picked == null) s.picked = true;        // 旧セーブは持ち込み済み扱い（既存プレイヤーに追加配布しない）
+    if (s.run && s.run.lap == null) s.run.lap = 1;
     return s;
   }
   // 旧セーブ等でカスタム上限を超えている構成があれば直し、外したチップは在庫に戻す
@@ -380,7 +358,6 @@
   // ---------------- 小物 ----------------
   var st = null, myF = null, foeF = null, busy = false, logs = [], prepChar = null;
   var sheetDie = -1, sheetSlot = -1;
-  var bring = [];   // この画面で選んだ持ち込みチップ（たたかうを押すまで保存されない）
   var lastGot = [];
 
   function $(id){ return document.getElementById(id); }
@@ -480,7 +457,6 @@
   function drawPrep(){
     var id = prepChar.id, sel = save.moves[id], miss = missingSet();
     $('prep-run').innerHTML = runLine();
-    drawBring();
     $('prep-char').innerHTML = '<span class="em">'+prepChar.emoji+'</span>'+prepChar.name+
       '<span class="hp">HP '+prepChar.hp+'</span>';
     $('prep-cnt').textContent = sel.length + '/4';
@@ -499,7 +475,7 @@
       pool.appendChild(d);
     });
 
-    // エネコロ3個（左・中・右）。1行＝その個の固定2面＋カスタム4面
+    // エネコロ3個（左・中・右）。1行＝その個の6面（v4で全面カスタム可）
     var dice = E.buildEnergy(prepChar, save.dice[id]);
     var bar = $('prep-dice');
     bar.innerHTML = '';
@@ -512,15 +488,12 @@
       row.appendChild(lab);
       var fb = document.createElement('div');
       fb.className = 'facebar';
-      faces.forEach(function(f, i){
-        var fixed = i < prepChar.fixed.length;
-        var slot = i - prepChar.fixed.length;
-        var chip = fixed ? null : save.dice[id][di][slot];
+      faces.forEach(function(f, slot){
+        var chip = save.dice[id][di][slot];
         var d = document.createElement('div');
-        d.className = 'fs' + (fixed ? ' lock' : '') + (chip ? ' chip' : '');
-        d.innerHTML = '<span class="v'+(f.length>1?' two':'')+'">'+E.faceEmoji(f)+'</span>'+
-                      (fixed ? '<i>🔒</i>' : '');
-        if (!fixed) d.onclick = function(){ openSheet(di, slot); };
+        d.className = 'fs' + (chip ? ' chip' : '');
+        d.innerHTML = '<span class="v">'+E.faceEmoji(f)+'</span>';
+        d.onclick = function(){ openSheet(di, slot); };
         fb.appendChild(d);
       });
       row.appendChild(fb);
@@ -533,58 +506,9 @@
       return '<span class="'+(n?'':'z')+'">'+E.CHIPS[k].emoji+'<b>'+n+'</b></span>';
     }).join('');
 
-    // 出発の条件は「技4つ」と「持ち込み4枚（初回のみ）」の併存
-    var left = bringLeft();
-    $('go').disabled = sel.length !== 4 || left > 0;
-    $('go').textContent = left > 0 ? '持ち込みをあと' + left + 'まい'
-                        : (sel.length === 4 ? 'たたかう' : 'わざを' + (4 - sel.length) + 'つえらぶ');
-  }
-
-  // ---- 持ち込みチップ（新しいセーブの最初の1回だけ・基本4種から4枚・✨は選べない） ----
-  function bringLeft(){ return save.picked ? 0 : E.START_PICK.count - bring.length; }
-  function drawBring(){
-    var box = $('prep-bring');
-    if (save.picked){ box.style.display = 'none'; box.innerHTML = ''; return; }
-    box.style.display = '';
-    var P = E.START_PICK, left = bringLeft();
-    var h = '<div class="bt">持ち込みチップを' + P.count + 'まいえらぶ <span>' +
-            (left ? 'あと' + left + 'まい' : 'そろった') + '</span></div><div class="brow">';
-    P.kinds.forEach(function(k){
-      h += '<div class="bb' + (left ? '' : ' z') + '" data-k="' + k + '">' + E.CHIPS[k].emoji + '</div>';
-    });
-    h += '</div><div class="got">';
-    if (!bring.length) h += '<u>おなじしゅるいを何まいえらんでもよい</u>';
-    else {
-      var used = {};
-      bring.forEach(function(k, i){
-        // 面にはめたぶんは在庫から出ているので戻せない（先に面から外す）。見た目でグレーにする
-        var can = (used[k] || 0) < (save.chips[k] || 0);
-        if (can) used[k] = (used[k] || 0) + 1;
-        h += '<i class="' + (can ? '' : 'z') + '" data-i="' + i + '">' + E.CHIPS[k].emoji + '</i>';
-      });
-    }
-    h += '</div>';
-    box.innerHTML = h;
-    var q = function(sl){ return Array.prototype.slice.call(box.querySelectorAll(sl)); };
-    if (left) q('.bb').forEach(function(el){
-      el.onclick = function(){ addBring(el.getAttribute('data-k')); };
-    });
-    q('.got i:not(.z)').forEach(function(el){
-      el.onclick = function(){ delBring(+el.getAttribute('data-i')); };
-    });
-  }
-  function addBring(k){
-    if (save.picked || bringLeft() <= 0 || E.START_PICK.kinds.indexOf(k) < 0) return;
-    bring.push(k);
-    save.chips[k] = (save.chips[k] || 0) + 1;   // 普通の在庫チップとして扱う
-    drawPrep();
-  }
-  function delBring(i){
-    var k = bring[i];
-    if (save.picked || !k || !save.chips[k]) return;
-    save.chips[k]--;
-    bring.splice(i, 1);
-    drawPrep();
+    // 出発の条件は「技4つ」だけ（v4で持ち込みの選択は廃止＝最初から在庫に4枚入っている）
+    $('go').disabled = sel.length !== 4;
+    $('go').textContent = sel.length === 4 ? 'たたかう' : 'わざを' + (4 - sel.length) + 'つえらぶ';
   }
 
   function toggleMove(i){
@@ -599,8 +523,9 @@
   function openSheet(die, slot){
     sheetDie = die; sheetSlot = slot;
     var id = prepChar.id, cur = save.dice[id][die][slot];
+    var bare = E.faceEmoji([prepChar.slots[slot]]);
     $('sheet-ttl').textContent = E.DICE_LABEL[die] + 'の面にはめるチップ（いまは ' +
-      E.faceEmoji(cur ? E.CHIPS[cur].face : [prepChar.slots[slot]]) + '）';
+      (cur ? E.faceEmoji(E.CHIPS[cur].face) + '・素の面は ' + bare : bare) + '）';
     var box = $('sheet-chips');
     box.innerHTML = '';
     E.CHIP_ORDER.forEach(function(k){
@@ -610,7 +535,7 @@
       var disabled = (!n && !on) || !chk.ok;
       var d = document.createElement('div');
       d.className = 'chip' + (disabled ? ' z' : '') + (on ? ' on' : '');
-      d.innerHTML = '<div class="v'+(E.CHIPS[k].face.length>1?' two':'')+'">'+E.CHIPS[k].emoji+'</div>'+
+      d.innerHTML = '<div class="v">'+E.CHIPS[k].emoji+'</div>'+
                     '<div class="k">'+(!chk.ok ? chk.reason : n+'まい')+'</div>';
       if (!disabled) d.onclick = function(){ setChip(k); };
       box.appendChild(d);
@@ -636,8 +561,6 @@
 
   $('go').onclick = function(){
     if (save.moves[prepChar.id].length !== 4) return;
-    if (bringLeft() > 0) return;
-    save.picked = true; bring = [];           // 持ち込みは最初の1回だけ（2周目・再開時は出さない）
     writeSave();                              // 保存①: たたかう
     newBattle();
   };

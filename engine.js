@@ -1,4 +1,4 @@
-// 醸しコロ ロジック層 v3（宣言制・技プール7→4・エネコロ固定2面＋カスタム4面・ブラウザ / node 両用）
+// 醸しコロ ロジック層 v3（宣言制・技プール7→4・エネコロ6面すべてカスタム可・ブラウザ / node 両用）
 // 数値の正は docs/characters.md、ルールの正は docs/spec_v3.md（v2部分は docs/spec.md）。ここでは勝手に調整しない。
 (function (root, factory) {
   var api = factory();
@@ -39,12 +39,17 @@
     wild:   { face: ['wild'],  emoji: '✨', rare: true }
   };
 
-  // 開始時の持ち込みチップ（v3.2・2026-09-04 ユーザー裁定 / spec_v3.md §2.2）
-  // 新しいセーブを作るときの1回だけ、基本4種（✨は蔵めぐりの報酬なので選べない）から count 枚を在庫に入れる。
-  // 2周目以降・再開時には出さない（集めたチップで戦う報酬ループを残すため）。
-  // count=4（本体裁定・2026-09-04訂正）。蔵めぐりは6連勝で1周＝1戦の勝率差は通し勝率にほとんど効かない
-  // （0.75^6≒18% / 0.69^6≒11%で大差なし）ため、選ぶ楽しさを優先して4枚に戻した。実測値はspec_v3.md §2.2参照。
-  var START_PICK = { count: 4, kinds: ['rice', 'koji', 'water', 'heat'] };
+  // 開始時の持ち込みチップ（v4 / 2026-09-04 ユーザー裁定 / spec_v3.md §2.2）
+  // **選ばせない**。新しいセーブを作るときに 🌾🍚💧🔥 を各1枚、自動で在庫に入れるだけ。
+  // 準備画面のピッカーは廃止（v3.2の「4まいえらぶ」をやめた）。✨は蔵めぐりの報酬なので配らない。
+  var START_PICK = { kinds: ['rice', 'koji', 'water', 'heat'], each: 1 };
+  // 新規セーブの在庫（チップ5種ぶんの数）
+  function startChips() {
+    var out = {};
+    for (var i = 0; i < CHIP_ORDER.length; i++) out[CHIP_ORDER[i]] = 0;
+    for (var j = 0; j < START_PICK.kinds.length; j++) out[START_PICK.kinds[j]] = START_PICK.each;
+    return out;
+  }
 
   // 技の種別: atk=攻撃 / heal=回復 / guard=次に受けるダメージ半減
   // hit = 当たり目の集合（ORIENT_ORDER の連続範囲が基本。安定3面 / 中2面 / ロマン1面 / 支え2面。
@@ -56,8 +61,8 @@
   var CHARS = [
     {
       id: 'k6', no: '6', emoji: '🏺', name: '協会6号', type: '🫧泡', hp: 110,
-      fixed: ['rice', 'rice'],                    // 外せない2面
-      slots: ['koji', 'water', 'heat', 'wild'],   // カスタム4面の素の面
+      // 素の6面（全部カスタム可）= 🌾🍚💧🔥✨ ＋ 得意エネ（コスト1技のエネ）1枚。v4で全キャラ統一
+      slots: ['rice', 'rice', 'koji', 'water', 'heat', 'wild'],
       die: ['s', 's', 'a', 'u', 'y', 'g'],
       star: [0, 2, 4, 6],
       moves: [
@@ -72,8 +77,7 @@
     },
     {
       id: 'k7', no: '7', emoji: '🍶', name: '協会7号', type: '🫧泡', hp: 105,
-      fixed: ['koji', 'koji'],
-      slots: ['rice', 'water', 'heat', 'wild'],
+      slots: ['rice', 'koji', 'koji', 'water', 'heat', 'wild'],
       die: ['s', 's', 's', 'a', 'y', 'g'],
       star: [0, 2, 4, 6],
       moves: [
@@ -88,8 +92,7 @@
     },
     {
       id: 'k9', no: '9', emoji: '🍈', name: '協会9号', type: '🌸香', hp: 90,
-      fixed: ['water', 'water'],
-      slots: ['koji', 'heat', 'heat', 'wild'],
+      slots: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
       die: ['y', 'y', 'y', 's', 'a', 'g'],
       star: [0, 2, 4, 6],
       moves: [
@@ -104,8 +107,7 @@
     },
     {
       id: 'k10', no: '10', emoji: '❄️', name: '協会10号', type: '🫧泡', hp: 110,
-      fixed: ['water', 'water'],
-      slots: ['rice', 'koji', 'heat', 'wild'],
+      slots: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
       die: ['a', 'a', 'a', 's', 'y', 'u'],
       star: [0, 2, 4, 6],
       moves: [
@@ -120,8 +122,7 @@
     },
     {
       id: 'k14', no: '14', emoji: '🍏', name: '協会14号', type: '🌸香', hp: 105,
-      fixed: ['water', 'water'],
-      slots: ['rice', 'koji', 'heat', 'wild'],
+      slots: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
       die: ['y', 'y', 's', 's', 'a', 'g'],
       star: [0, 2, 4, 6],
       moves: [
@@ -137,8 +138,7 @@
     {
       id: 'k1801', no: '1801', emoji: '🧬', name: '協会1801号', type: '🌸香', hp: 95,
       ability: { name: 'ロマン', failSelf: 10 }, // 技が失敗すると自分に10
-      fixed: ['koji', 'koji'],
-      slots: ['water', 'heat', 'heat', 'wild'],
+      slots: ['rice', 'koji', 'koji', 'water', 'heat', 'wild'],
       die: ['g', 'g', 'y', 'y', 's', 'a'],
       star: [0, 2, 4, 6],
       moves: [
@@ -162,31 +162,36 @@
 
   // ---- エネコロの組み立て --------------------------------------------------
   // 2026-09-04（v3.1）: エネコロは **左・中・右の3個**。表示順＝振るときの並び。
-  // 3個それぞれが「固定2面＋カスタム4面」を持ち、チップは1個ずつ別々にはめられる。
-  // 初期は3個とも同じ構成（＝v3までの1種類）なので、初期構成のバランスは完全に同一。
+  // v4（2026-09-04・ユーザー裁定）: **固定2面を廃止し、6面すべてカスタム可**にした。
+  // 3個それぞれが「素の6面」を持ち、チップは1個ずつ・1面ずつ別々にはめられる（スロットは 6×3＝18）。
+  // 素の6面は全キャラ共通で 🌾🍚💧🔥✨ ＋ 得意エネ1枚。上限（✨1面 / 同エネ2面）は据え置き。
   var DICE_N = 3;
+  var SLOTS_N = 6;
   var DICE_LABEL = ['左', '中', '右'];
+  function emptyRow() {
+    var r = [], i;
+    for (i = 0; i < SLOTS_N; i++) r.push(null);
+    return r;
+  }
 
-  // 面の値は「エネキーの配列」: ['koji'] / ['koji','koji'] / ['wild']
-  // chips1 = ダイス1個ぶんのカスタム4スロット（null=素の面 / チップキー）
+  // 面の値は「エネキーの配列」: ['koji'] / ['wild']（2エネ面は2026-09-03に廃止）
+  // chips1 = ダイス1個ぶんの6スロット（null=素の面 / チップキー）
   function buildDie(char, chips1) {
     var faces = [], i;
-    for (i = 0; i < char.fixed.length; i++) faces.push([char.fixed[i]]);
     for (i = 0; i < char.slots.length; i++) {
       var c = chips1 && chips1[i];
       faces.push(c && CHIPS[c] ? CHIPS[c].face.slice() : [char.slots[i]]);
     }
     return faces;
   }
-  // chips を必ず「3個 × 4スロット」に整える。
-  // 旧セーブ（1個ぶんの4スロット）を渡されたら3個に複製する（壊さない）
+  // chips を必ず「3個 × 6スロット」に整える。形が合わないもの（v3以前の4スロット等）は
+  // 素の面（null）に落とすだけで例外は出さない。セーブ側は v を上げて丸ごと初期化する。
   function normalizeChips(chips) {
-    var old = !!(chips && chips.length === 4 && !Array.isArray(chips[0]));
     var out = [], i, j;
     for (i = 0; i < DICE_N; i++) {
-      var src = old ? chips : (chips && chips[i]);
-      var row = [null, null, null, null];
-      if (src && src.length === 4) for (j = 0; j < 4; j++) row[j] = src[j] || null;
+      var src = chips && chips[i];
+      var row = emptyRow();
+      if (src && src.length === SLOTS_N) for (j = 0; j < SLOTS_N; j++) row[j] = src[j] || null;
       out.push(row);
     }
     return out;
@@ -210,9 +215,9 @@
     return dice.map(facesSig).join('/');
   }
 
-  // ---- カスタム上限（spec_v3.md §2.1・§3.1・2026-09-03改訂） ----------------
-  // 同じ種類のエネは、固定2面を含めて1ダイスに2面まで（🌾🍚💧🔥それぞれ）。✨は1面まで（据え置き）。
-  // 固定2面は同種なので、その種類のチップはカスタム枠に置けない。
+  // ---- カスタム上限（spec_v3.md §2.1・2026-09-03 / v4で固定2面の但し書きだけ削除） ----
+  // 同じ種類のエネは1ダイスに2面まで（🌾🍚💧🔥それぞれ）。✨は1ダイスに1面まで。
+  // v4: 固定2面が無くなったので「6面ぜんぶ」を数える。素の6面はどのキャラも上限ちょうど内に収まる。
   var LIMIT = { rice: 2, koji: 2, water: 2, heat: 2, wild: 1 };
   var LIMIT_MSG = {
     rice: '🌾は2面まで', koji: '🍚は2面まで', water: '💧は2面まで', heat: '🔥は2面まで',
@@ -224,16 +229,15 @@
     return !!(chipKey && CHIPS[chipKey] && CHIPS[chipKey].face[0] === char.slots[slot]);
   }
 
-  // 上限は **1個ごと** に効く（v3.1）。3個合計の比率は3個とも同じ上限なのでv3と同じになる。
+  // 上限は **1個ごと** に効く（v3.1）。3個とも同じ上限。
   // スロット i の実効面（チップがあればその面・無ければ素の面）。chips1 = ダイス1個ぶん
   function slotFace(char, chips1, i) {
     var c = chips1 && chips1[i];
     return (c && CHIPS[c]) ? CHIPS[c].face : [char.slots[i]];
   }
-  // ダイス1個の固定2面＋カスタム4面（素の面 or チップ）を種類ごとに数える
+  // ダイス1個の6面（素の面 or チップ）を種類ごとに数える
   function countSlots(char, chips1) {
     var n = { rice: 0, koji: 0, water: 0, heat: 0, wild: 0 }, i, t;
-    for (i = 0; i < char.fixed.length; i++) { t = char.fixed[i]; n[t]++; }
     for (i = 0; i < char.slots.length; i++) {
       t = slotFace(char, chips1, i)[0];
       n[t]++;
@@ -268,7 +272,7 @@
   }
   // ダイス1個ぶんの上限違反・廃止チップを直す
   function repairDie(char, chips1) {
-    var cur = (chips1 && chips1.length === 4) ? chips1.slice() : [null, null, null, null];
+    var cur = (chips1 && chips1.length === SLOTS_N) ? chips1.slice() : emptyRow();
     var removed = [], i;
     // 廃止済み（CHIPSに無い）チップは素の面へ戻す。2026-09-03の2エネ廃止で出る旧セーブ対応
     for (i = 0; i < cur.length; i++) {
@@ -282,7 +286,7 @@
       }
     }
     var guard = 0, v;
-    while (!(v = validateDie(char, cur)).ok && guard++ < 8) {
+    while (!(v = validateDie(char, cur)).ok && guard++ < SLOTS_N + 2) {
       var done = false;
       for (i = cur.length - 1; i >= 0 && !done; i--) {
         var c = cur[i];
@@ -295,8 +299,8 @@
     }
     return { chips: cur, removed: removed };
   }
-  // 3個ぶんまとめて直す（旧セーブ＝1個ぶんを渡されたら normalizeChips が3個に複製する）
-  // 戻り値 { chips: 直した3個×4スロット, removed: [外したチップキー]（在庫に戻せるもののみ） }
+  // 3個ぶんまとめて直す（形の合わない入力は normalizeChips が素の面に落とす）
+  // 戻り値 { chips: 直した3個×6スロット, removed: [外したチップキー]（在庫に戻せるもののみ） }
   function repairSlots(char, chips) {
     var cs = normalizeChips(chips), out = [], removed = [];
     for (var i = 0; i < DICE_N; i++) {
@@ -311,8 +315,7 @@
   // 詳しい経緯は spec_v3.md §3.1 参照。cpuLapChips は廃止（呼び出し側もあわせて削除済み）。
 
   // 出撃するキャラ（＝素のキャラ定義＋選んだ4技＋組み立てたエネコロ3個×6面）
-  // load = { moves:[i,i,i,i], chips:[[左4],[中4],[右4]] }。省略時は★4技＋素の面
-  // chips に旧形式（1個ぶんの4スロット）を渡すと3個に複製される
+  // load = { moves:[i,i,i,i], chips:[[左6],[中6],[右6]] }。省略時は★4技＋素の面
   function buildFighter(charOrId, load) {
     var base = typeof charOrId === 'string' ? getChar(charOrId) : charOrId;
     if (base && base.base) base = base.base; // すでに組み立て済みなら素に戻す
@@ -597,9 +600,9 @@
   return {
     CHARS: CHARS, ORIENT: ORIENT, ORIENT_ORDER: ORIENT_ORDER, ENERGY: ENERGY, WILD: WILD,
     CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP, RARE: RARE,
-    START_PICK: START_PICK,
+    START_PICK: START_PICK, startChips: startChips,
     LIMIT: LIMIT, LIMIT_MSG: LIMIT_MSG,
-    DICE_N: DICE_N, DICE_LABEL: DICE_LABEL,
+    DICE_N: DICE_N, SLOTS_N: SLOTS_N, DICE_LABEL: DICE_LABEL,
     validateSlots: validateSlots, validateDie: validateDie, canPlaceChip: canPlaceChip,
     repairSlots: repairSlots, repairDie: repairDie,
     countSlots: countSlots, slotFace: slotFace, normalizeChips: normalizeChips,

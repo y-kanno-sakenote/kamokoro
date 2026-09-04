@@ -78,7 +78,7 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
 <div class="wrap">
   <div class="eyebrow">KAMOSHI-KORO ZUKAN v2 · きょうかい酵母</div>
   <h1>醸しコロ図鑑</h1>
-  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、出た面（静・湧・沸・躍・極）が技の当たり目に入っていれば「当たり目効果」が乗る。当たり目は該当する漢字を静→湧→沸→躍→極の順に並べて示す（例「沸躍極」）。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。エネコロは左・中・右の3個で、下の面構成は<b>3個ともこの初期構成</b>（本編の準備画面で1個ずつ別々にチップを付け替えられます）。</p>
+  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、出た面（静・湧・沸・躍・極）が技の当たり目に入っていれば「当たり目効果」が乗る。当たり目は該当する漢字を静→湧→沸→躍→極の順に並べて示す（例「沸躍極」）。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。エネコロは左・中・右の3個で、下の面構成は<b>3個ともこの初期構成</b>（🌾🍚💧🔥✨＋そのキャラの得意エネ1枚。本編の準備画面で<b>6面ぜんぶ</b>を1個ずつ別々に付け替えられます）。</p>
 
   <div class="flow">
     <div><b>1 狙う</b><p>技を1つ選ぶ。前の手番に使った技は選べない</p></div>
@@ -118,7 +118,7 @@ var C=[
   mv:[['ぷくぷく','🍚',10,'say','+5'],['高泡','🍚🌾',20,'sa','+10'],['真澄の一撃','🍚🍚💧',35,'g','自分に10（泡が溢れた）'],['きじゅん','🍚🔥',"半減",'sg','回復10']]},
  {no:'9',emo:'🍈',name:'協会9号',type:'香',tc:'t-kaori',hp:90,
   desc:'熊本県酒造研究所で育てられ（昭和35年）、野白式吟醸造りとともに吟醸酒を安定させた「熊本酵母」。',src:'醸協 84(12) 1989 p.854／清酒製造技術 p.198',
-  ene:'🍚💧💧🔥🔥✨',ori:'yyysag',bias:'躍が出やすい',
+  ene:'🌾🍚💧💧🔥✨',ori:'yyysag',bias:'躍が出やすい',
   mv:[['吟醸香','💧',10,'yg','+5'],['野白式','💧🔥',15,'ay','+5'],['熊本の華','💧💧🔥',35,'y','相手の次エネコロ-1'],['低温じっくり','🍚🔥',"回復30",'sy','回復+10']]},
  {no:'10',emo:'❄️',name:'協会10号',type:'泡',tc:'t-awa',hp:110,
   desc:'東北の酒造場の醪から分離され（昭和27年）、小川らが育て上げた。',src:'清酒製造技術 p.198',
@@ -130,7 +130,7 @@ var C=[
   mv:[['すっきり','💧',10,'ayg','+5'],['金沢香','💧🍚',20,'sa','+15'],['酸なしの美','💧💧🍚',30,'y','+10'],['北陸の水','💧🔥',"回復20",'yg','回復+5']]},
  {no:'1801',emo:'🧬',name:'協会1801号',type:'香',tc:'t-kaori',hp:95,
   desc:'1601号×1701号の交雑株。セルレニン耐性でりんごの香り（カプロン酸エチル）を大量に作る。有機酸が少なく、イソアミルアルコールは協会酵母で最少。',src:'醸協 101(12) 2006 p.913, p.918',kin:'1601号 × 1701号',trait:'とくせい「ロマン」: 技が失敗すると自分に10',
-  ene:'🍚🍚💧🔥🔥✨',ori:'ggyysa',bias:'極・躍が出やすい',
+  ene:'🌾🍚🍚💧🔥✨',ori:'ggyysa',bias:'極・躍が出やすい',
   mv:[['セルレニン耐性','🍚',10,'ayg','+5'],['ハイブリッド','🍚💧',15,'yg','+5'],['りんご香バースト','🍚💧🔥',40,'g','+10'],['親ゆずり','🍚🔥',"回復30",'sa','回復+10']]}
 ];
 function seg(s){return Array.from(s).filter(function(ch){return ch.trim()!=='' && ch!=='️';}).map(function(ch){return ch;});}
@@ -145,7 +145,7 @@ C.forEach(function(c,i){
    '<div class="head"><div class="emo">'+c.emo+'</div><div><div class="no">No.'+c.no+'</div><h2 class="name">'+c.name+'</h2></div><span class="type '+c.tc+'">'+c.type+'タイプ</span></div>'+
    '<div class="hp">HP '+c.hp+'<i><b style="width:'+(c.hp/120*100)+'%"></b></i></div>'+
    '<p class="desc">'+c.desc+'</p><p class="src">出典: '+c.src+'</p>'+(c.kin?'<p class="kin">血縁: '+c.kin+'</p>':'')+(c.trait?'<p class="trait">'+c.trait+'</p>':'')+
-   '<div class="dice"><span>エネコロ<br><small style="font-size:9px;opacity:.7">左・中・右3個とも同じ</small></span><div class="faces" data-e>'+eneFaces(c.ene).map(function(f){return '<span class="face">'+f+'</span>';}).join('')+'</div>'+
+   '<div class="dice"><span>エネコロ<br><small style="font-size:9px;opacity:.7">左・中・右3個とも同じ／全面かえられる</small></span><div class="faces" data-e>'+eneFaces(c.ene).map(function(f){return '<span class="face">'+f+'</span>';}).join('')+'</div>'+
    '<span>キャラコロ</span><div><div class="faces" data-o>'+ori.map(function(o){return '<span class="face">'+ORI[o]+'</span>';}).join('')+'</div><div style="font-size:11px;margin-top:3px">'+c.bias+'</div></div></div>'+
    '<table><thead><tr><th>技</th><th>コスト</th><th style="text-align:right">威力</th><th>当たり目 → 効果</th></tr></thead><tbody>'+
    c.mv.map(function(m){return '<tr><td class="mv">'+m[0]+'</td><td class="cost">'+m[1]+'</td><td class="pw">'+m[2]+'</td><td>'+hitLabel(m[3])+' → '+m[4]+'</td></tr>';}).join('')+

@@ -8,10 +8,9 @@ var E = require(path.join(__dirname, '..', 'engine.js'));
 
 var N = parseInt(process.argv[2], 10) || 2000;
 var V3 = process.argv.indexOf('--v3') >= 0;
-// --bring / --bring=3 : 持ち込みチップの枚数を変えて「持ち込み最良 vs 初期」だけを測り直す
-var BRING_ARG = process.argv.filter(function (a) { return a.indexOf('--bring') === 0; })[0];
-var BRING_ONLY = !!BRING_ARG && !V3;
-var BRING_N = BRING_ARG && BRING_ARG.indexOf('=') > 0 ? parseInt(BRING_ARG.split('=')[1], 10) : null;
+// --bring : 「持ち込み（🌾🍚💧🔥各1枚）の最良 vs 初期」だけを測り直す軽い経路
+// v4で持ち込みは固定（各1枚・選択なし）になったので枚数指定（--bring=N）は廃止した
+var BRING_ONLY = process.argv.indexOf('--bring') >= 0 && !V3;
 var CH = E.CHARS;
 
 // 乱数（seed固定で再現できるようにする）
@@ -113,21 +112,31 @@ function moveSets() {
     for (var c = b + 1; c < 7; c++) for (var d = c + 1; d < 7; d++) out.push([a, b, c, d]);
   return out;
 }
-// ダイス1個ぶん: カスタム4スロット（各スロット = 素の面 orチップ5種）を上限ルール内で全列挙し、
-// 6面が同じになるものは畳む（spec_v3.md §2.1: ✨1面まで・同エネは固定込み2面まで）
-// 実測すると全キャラ13通りに畳まれる
+// 面の多重集合キー（並び順は確率に効かないので、同じ集合になる置き方は畳む）
+function faceKey(char, ch) {
+  return E.facesSig(E.buildDie(char, ch).slice().sort(function (x, y) {
+    return x.join('+') < y.join('+') ? -1 : 1;
+  }));
+}
+// 6スロット（各スロット = 素の面 or チップ5種）を全列挙する。opts の並びで 6桁の数え上げ
+function eachPlacement(opts, fn) {
+  var L = opts.length, n = E.SLOTS_N, total = Math.pow(L, n), i, t, ch;
+  for (var c = 0; c < total; c++) {
+    ch = new Array(n); t = c;
+    for (i = 0; i < n; i++) { ch[i] = opts[t % L]; t = Math.floor(t / L); }
+    fn(ch);
+  }
+}
+// ダイス1個ぶん: v4で **6面すべてカスタム可**（固定2面は廃止）。上限ルール内で全列挙し、
+// 6面が同じになるものは畳む（spec_v3.md §2.1: ✨1面まで・同エネ2面）
 function dieSets(char) {
-  var opts = [null].concat(E.CHIP_ORDER), out = [], seen = {}, L = opts.length;
-  for (var a = 0; a < L; a++) for (var b = 0; b < L; b++)
-    for (var c = 0; c < L; c++) for (var d = 0; d < L; d++) {
-      var ch = [opts[a], opts[b], opts[c], opts[d]];
-      if (!E.validateDie(char, ch).ok) continue;
-      var sig = E.facesSig(E.buildDie(char, ch).slice().sort(function (x, y) {
-        return x.join('+') < y.join('+') ? -1 : 1;
-      }));
-      if (seen[sig]) continue;
-      seen[sig] = 1; out.push(ch);
-    }
+  var opts = [null].concat(E.CHIP_ORDER), out = [], seen = {};
+  eachPlacement(opts, function (ch) {
+    if (!E.validateDie(char, ch).ok) return;
+    var sig = faceKey(char, ch);
+    if (seen[sig]) return;
+    seen[sig] = 1; out.push(ch.slice());
+  });
   return out;
 }
 // v3.1: エネコロは左・中・右の3個。個ごとに別々の構成が組めるので、
@@ -140,34 +149,48 @@ function diceSets(char) {
   return out;
 }
 // ---- 持ち込みチップ（spec_v3.md §2.2）の探索 --------------------------------
-// ダイス1個ぶんの候補を「使ったチップ枚数」つきで作る。持ち込みで選べるのは基本4種だけ（✨は不可）。
-// 面が同じになる置き方は畳み、**いちばん枚数の少ない置き方**を代表にする（安く同じ面が作れるなら安い方が最良）
-function bringDieSets(char) {
-  var opts = [null].concat(E.START_PICK.kinds), best = {}, L = opts.length, i;
-  for (var a = 0; a < L; a++) for (var b = 0; b < L; b++)
-    for (var c = 0; c < L; c++) for (var d = 0; d < L; d++) {
-      var ch = [opts[a], opts[b], opts[c], opts[d]], cost = 0, bad = false;
-      for (i = 0; i < 4; i++) {
-        if (!ch[i]) continue;
-        cost++;
-        if (ch[i] === char.slots[i]) { bad = true; break; }   // 「同じ面です」（素の面と同じチップは置けない）
-      }
-      if (bad) continue;
-      if (!E.validateDie(char, ch).ok) continue;              // 上限（✨1面・同エネ2面）
-      var sig = E.facesSig(E.buildDie(char, ch).slice().sort(function (x, y) {
-        return x.join('+') < y.join('+') ? -1 : 1;
-      }));
-      if (!best[sig] || cost < best[sig].cost) best[sig] = { ch: ch, cost: cost };
-    }
-  return Object.keys(best).map(function (k) { return best[k]; });
+// v4: 持ち込みは **🌾🍚💧🔥を各1枚（固定）**。種類ごとに使える枚数が決まっているので、
+// 枚数の合計ではなく「種類ごとの使用数ベクトル」で数える。
+var KIND = E.START_PICK.kinds;                     // ['rice','koji','water','heat']
+function kindVec(ch) {
+  var v = [0, 0, 0, 0];
+  for (var i = 0; i < ch.length; i++) {
+    var at = ch[i] ? KIND.indexOf(ch[i]) : -1;
+    if (at >= 0) v[at]++;
+  }
+  return v;
 }
-// 3個ぶん（左・中・右）の順序つき直積のうち、**使うチップの合計が budget 枚以下**のものを全列挙する。
-// 12スロットのどこに置くかは、1個ぶんの候補（面の集合）× 3個の並び で尽きている（並びは意味を持つので畳まない）
-function bringDiceSets(char, budget) {
-  var D = bringDieSets(char), out = [], i, j, k;
+// ダイス1個ぶんの候補（面の集合 × 使用ベクトル）。持ち込みで置けるのは基本4種だけ（✨は不可）。
+// 種類ごとの在庫が各1枚なので、1個で同じ種類を2枚使う候補は最初から捨てる。
+// 面が同じ集合になる置き方は、使用ベクトルごとに1つだけ残す（安い置き方も高い置き方も候補に要る）
+function bringDieSets(char) {
+  var opts = [null].concat(KIND), best = {}, out = [];
+  eachPlacement(opts, function (ch) {
+    var i, bad = false;
+    for (i = 0; i < ch.length; i++) {
+      if (ch[i] && ch[i] === char.slots[i]) { bad = true; break; } // 「同じ面です」
+    }
+    if (bad) return;
+    var v = kindVec(ch);
+    for (i = 0; i < 4; i++) if (v[i] > E.START_PICK.each) return;  // 種類ごとの在庫（各1枚）
+    if (!E.validateDie(char, ch).ok) return;                        // 上限（✨1面・同エネ2面）
+    var key = faceKey(char, ch) + '#' + v.join('');
+    if (best[key]) return;
+    best[key] = 1;
+    out.push({ ch: ch.slice(), v: v, cost: v[0] + v[1] + v[2] + v[3] });
+  });
+  return out;
+}
+// 3個ぶん（左・中・右）の順序つき直積のうち、**種類ごとの合計が在庫（各1枚）以内**のものを全列挙する。
+// 18スロットのどこに置くかは、1個ぶんの候補（面の集合）× 3個の並び で尽きている（並びは意味を持つので畳まない）
+function bringDiceSets(char) {
+  var D = bringDieSets(char), out = [], i, j, k, q, ok;
   for (i = 0; i < D.length; i++) for (j = 0; j < D.length; j++) for (k = 0; k < D.length; k++) {
-    if (D[i].cost + D[j].cost + D[k].cost > budget) continue;
-    out.push([D[i].ch, D[j].ch, D[k].ch]);
+    ok = true;
+    for (q = 0; q < 4; q++) {
+      if (D[i].v[q] + D[j].v[q] + D[k].v[q] > E.START_PICK.each) { ok = false; break; }
+    }
+    if (ok) out.push([D[i].ch, D[j].ch, D[k].ch]);
   }
   return out;
 }
@@ -236,28 +259,27 @@ function searchMoves(MS, NS, TOP, rng, quiet) {
   return topMoves;
 }
 
-// 持ち込み count 枚の最良構成 vs 初期構成（spec_v3.md §2.2 の実測）
-function bringSection(count, base, topMoves, N, NS, TOP, rng) {
-  console.log('\n## 持ち込み' + count + '枚の最良構成 vs 初期構成（各 ' + N + ' 戦・探索 ' + NS + ' 戦）');
-  console.log('持ち込みは基本4種（🌾🍚💧🔥）から重複ありで' + count + '枚。12スロットのどこに置くかも含めて全列挙する');
-  console.log('\n| キャラ | 12スロットへの置き方（' + count + '枚以下） |');
+// 持ち込み（🌾🍚💧🔥 各1枚・固定）の最良構成 vs 初期構成（spec_v3.md §2.2 の実測）
+var BRING_LABEL = '🌾🍚💧🔥各1枚';
+function bringSection(base, topMoves, N, NS, TOP, rng) {
+  console.log('\n## 持ち込み（' + BRING_LABEL + '）を積んだ最良構成 vs 初期構成（各 ' + N + ' 戦・探索 ' + NS + ' 戦）');
+  console.log('v4の持ち込みは固定（選択なし）。18スロットのどこに置くかを全列挙する');
+  console.log('\n| キャラ | 18スロットへの置き方 |');
   console.log('|---|---|');
   var topDice = {};
   CH.forEach(function (c) {
-    var DS = bringDiceSets(c, count);
+    var DS = bringDiceSets(c);
     var res = DS.map(function (ch) { return { ch: ch, w: runVsAll(c.id, { chips: ch }, NS, rng) }; });
     res.sort(function (x, y) { return y.w - x.w; });
     topDice[c.id] = res.slice(0, TOP);
     console.log('| ' + c.emoji + c.name + ' | ' + DS.length + ' 通り |');
   });
-  // 自動フォールバックの判定線は70%（本体の事前裁定）
-  var w = pinch('### 持ち込み' + count + '枚（上位' + TOP + 'ダイス × 上位' + TOP + '技セット）',
-    base, topDice, topMoves, N, rng, 0.70);
+  var w = pinch('### 持ち込み（' + BRING_LABEL + '）＋技セットも自由（上位' + TOP + 'ダイス × 上位' + TOP + '技セット）',
+    base, topDice, topMoves, N, rng, 0.85);
   // 参考: 技を★のまま固定して「持ち込みだけ」の効きを見る（技セットの自由度は持ち込みとは別に元からある）
   var star = {};
   CH.forEach(function (c) { star[c.id] = [{ mi: c.star.slice(), w: 0 }]; });
-  pinch('### 参考: 技は★4技のまま・持ち込み' + count + '枚だけ',
-    base, topDice, star, N, rng, 0.70);
+  pinch('### 参考: 技は★4技のまま・持ち込みだけ', base, topDice, star, N, rng, 0.85);
   return w;
 }
 
@@ -267,8 +289,8 @@ function runV3() {
   var NS = Math.max(60, Math.floor(N / 10));   // 探索用（粗く回す）
   var TOP = 10;
 
-  console.log('# 醸しコロ v3.1 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
-  console.log('エネコロは左・中・右の3個。3個それぞれ別々にカスタムできる（初期は3個とも同じ構成）\n');
+  console.log('# 醸しコロ v4 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
+  console.log('エネコロは左・中・右の3個。**6面すべてカスタム可**（固定2面は廃止・スロットは6×3＝18）\n');
 
   // ---- 1. 初期構成の総合勝率（回帰の目安。詳細は `node sim/sim.js` 側） ----
   console.log('## 1. 初期構成（★4技・素の面）の総合勝率');
@@ -278,7 +300,7 @@ function runV3() {
   console.log('\n## 2. 技セット総当たり（C(7,4)=35 × 6体・素の面）');
   var topMoves = searchMoves(MS, NS, TOP, rng, false);
 
-  // ---- 3. ダイス総当たり（左・中・右の3個ぶん＝13^3 通り・★4技） ----
+  // ---- 3. ダイス総当たり（左・中・右の3個ぶん＝(1個の候補)^3 通り・★4技） ----
   console.log('\n## 3. ダイス総当たり（左・中・右それぞれ上限内の全通り × 6体・★4技）');
   console.log('| キャラ | 1個の候補 | 3個の通り数 | 最強のダイス | 勝率 |');
   console.log('|---|---|---|---|---|');
@@ -316,22 +338,21 @@ function runV3() {
     console.log('| ' + E.CHIPS[k].emoji + ' | ' + exp[k].toFixed(2) + ' |');
   });
   console.log('- 1周で 通常6枚＋レア' + rareTotal + '枚。ただし✨は1ダイスに1面まで（初期構成の✨1面で埋まっている）ので、' +
-    'どの個もカスタム4面をレアで埋めることはできない（spec_v3.md §2.1）。' +
-    '差し替え先が4→12スロットに増えたぶん、集めきるまでの周回は長くなる（ドロップ率は据え置き）');
+    'どの個も6面をレアで埋めることはできない（spec_v3.md §2.1）。' +
+    '差し替え先が18スロットに増えたぶん、集めきるまでの周回は長くなる（ドロップ率は据え置き）');
 
-  // ---- 6. 持ち込み（開始時のチップ）の最良構成 vs 初期構成 ----
-  bringSection(BRING_N || E.START_PICK.count, base, topMoves, N, NS, TOP, rng);
+  // ---- 6. 持ち込み（開始時のチップ・🌾🍚💧🔥各1枚）の最良構成 vs 初期構成 ----
+  bringSection(base, topMoves, N, NS, TOP, rng);
 }
 
-// --bring / --bring=3 : 持ち込みの枚数だけを測り直す軽い経路（§3の13^3全列挙を回さない）
+// --bring : 持ち込みぶんだけを測り直す軽い経路（§3のダイス全列挙を回さない）
 function runBringOnly() {
   var rng = makeRng(20260903);
   var NS = Math.max(60, Math.floor(N / 10)), TOP = 10;
-  var count = BRING_N || E.START_PICK.count;
-  console.log('# 醸しコロ 持ち込み' + count + '枚の実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦）');
+  console.log('# 醸しコロ 持ち込み（' + BRING_LABEL + '）の実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦）');
   var base = baseWins(N, rng, true);
   var topMoves = searchMoves(moveSets(), NS, TOP, rng, true);
-  bringSection(count, base, topMoves, N, NS, TOP, rng);
+  bringSection(base, topMoves, N, NS, TOP, rng);
 }
 
 if (BRING_ONLY) runBringOnly();
