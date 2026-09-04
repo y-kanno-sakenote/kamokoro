@@ -78,7 +78,7 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
 <div class="wrap">
   <div class="eyebrow">KAMOSHI-KORO ZUKAN v2 · きょうかい酵母</div>
   <h1>醸しコロ図鑑</h1>
-  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、出た面（静・湧・沸・躍・極）が技の当たり目に入っていれば「当たり目効果」が乗る。当たり目は「沸〜極」のように範囲で決まっている。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。</p>
+  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、出た面（静・湧・沸・躍・極）が技の当たり目に入っていれば「当たり目効果」が乗る。当たり目は該当する漢字を静→湧→沸→躍→極の順に並べて示す（例「沸躍極」）。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。</p>
 
   <div class="flow">
     <div><b>1 狙う</b><p>技を1つ選ぶ。前の手番に使った技は選べない</p></div>
@@ -101,13 +101,11 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
 // キャラコロの面は漢字1文字。並びは発酵の勢いが上がっていく順（静→湧→沸→躍→極）
 var ORI={s:'静',a:'湧',u:'沸',y:'躍',g:'極'};
 var OO=['s','a','u','y','g'];
-// 当たり目は面の集合。1面='極' / 連続='沸〜極' / 飛び飛び='静・躍'
+// 当たり目の集合は該当する漢字を全部、静→湧→沸→躍→極の順に区切りなしで並べる
 function hitLabel(h){
   var idx=h.split('').map(function(k){return OO.indexOf(k);}).sort(function(a,b){return a-b;});
   var kj=idx.map(function(i){return ORI[OO[i]];});
-  if(kj.length===1) return kj[0];
-  for(var i=1;i<idx.length;i++) if(idx[i]!==idx[i-1]+1) return kj.join('・');
-  return kj[0]+'〜'+kj[kj.length-1];
+  return kj.join('');
 }
 var C=[
  {no:'6',emo:'🏺',name:'協会6号',type:'泡',tc:'t-awa',hp:110,

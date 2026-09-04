@@ -317,15 +317,13 @@
     return c / char.die.length;
   }
 
-  // 当たり目の集合を短く書く。1面='極' / 連続='沸〜極' / 飛び飛び='静・躍'
+  // 当たり目の集合は該当する漢字を全部、静→湧→沸→躍→極の順に区切りなしで並べる
   function hitLabel(hit) {
     var set = typeof hit === 'string' ? [hit] : hit;
     var idx = set.map(function (k) { return ORIENT_ORDER.indexOf(k); })
                  .sort(function (a, b) { return a - b; });
     var kj = idx.map(function (i) { return ORIENT[ORIENT_ORDER[i]].kanji; });
-    if (kj.length === 1) return kj[0];
-    for (var i = 1; i < idx.length; i++) if (idx[i] !== idx[i - 1] + 1) return kj.join('・');
-    return kj[0] + '〜' + kj[kj.length - 1];
+    return kj.join('');
   }
 
   // ---- 蔵めぐりの報酬 ------------------------------------------------------
