@@ -8,6 +8,10 @@ var E = require(path.join(__dirname, '..', 'engine.js'));
 
 var N = parseInt(process.argv[2], 10) || 2000;
 var V3 = process.argv.indexOf('--v3') >= 0;
+// --bring / --bring=3 : 持ち込みチップの枚数を変えて「持ち込み最良 vs 初期」だけを測り直す
+var BRING_ARG = process.argv.filter(function (a) { return a.indexOf('--bring') === 0; })[0];
+var BRING_ONLY = !!BRING_ARG && !V3;
+var BRING_N = BRING_ARG && BRING_ARG.indexOf('=') > 0 ? parseInt(BRING_ARG.split('=')[1], 10) : null;
 var CH = E.CHARS;
 
 // 乱数（seed固定で再現できるようにする）
@@ -135,6 +139,39 @@ function diceSets(char) {
     out.push([D[i], D[j], D[k]]);
   return out;
 }
+// ---- 持ち込みチップ（spec_v3.md §2.2）の探索 --------------------------------
+// ダイス1個ぶんの候補を「使ったチップ枚数」つきで作る。持ち込みで選べるのは基本4種だけ（✨は不可）。
+// 面が同じになる置き方は畳み、**いちばん枚数の少ない置き方**を代表にする（安く同じ面が作れるなら安い方が最良）
+function bringDieSets(char) {
+  var opts = [null].concat(E.START_PICK.kinds), best = {}, L = opts.length, i;
+  for (var a = 0; a < L; a++) for (var b = 0; b < L; b++)
+    for (var c = 0; c < L; c++) for (var d = 0; d < L; d++) {
+      var ch = [opts[a], opts[b], opts[c], opts[d]], cost = 0, bad = false;
+      for (i = 0; i < 4; i++) {
+        if (!ch[i]) continue;
+        cost++;
+        if (ch[i] === char.slots[i]) { bad = true; break; }   // 「同じ面です」（素の面と同じチップは置けない）
+      }
+      if (bad) continue;
+      if (!E.validateDie(char, ch).ok) continue;              // 上限（✨1面・同エネ2面）
+      var sig = E.facesSig(E.buildDie(char, ch).slice().sort(function (x, y) {
+        return x.join('+') < y.join('+') ? -1 : 1;
+      }));
+      if (!best[sig] || cost < best[sig].cost) best[sig] = { ch: ch, cost: cost };
+    }
+  return Object.keys(best).map(function (k) { return best[k]; });
+}
+// 3個ぶん（左・中・右）の順序つき直積のうち、**使うチップの合計が budget 枚以下**のものを全列挙する。
+// 12スロットのどこに置くかは、1個ぶんの候補（面の集合）× 3個の並び で尽きている（並びは意味を持つので畳まない）
+function bringDiceSets(char, budget) {
+  var D = bringDieSets(char), out = [], i, j, k;
+  for (i = 0; i < D.length; i++) for (j = 0; j < D.length; j++) for (k = 0; k < D.length; k++) {
+    if (D[i].cost + D[j].cost + D[k].cost > budget) continue;
+    out.push([D[i].ch, D[j].ch, D[k].ch]);
+  }
+  return out;
+}
+
 function dieLabel(char, ch) {
   return ch.map(function (k, i) {
     return k ? E.CHIPS[k].emoji : '(' + E.ENERGY[char.slots[i]].emoji + ')';
@@ -145,6 +182,84 @@ function chipsLabel(char, cs) {
 }
 
 function movesLabel(char, mi) { return mi.map(function (i) { return char.moves[i].name; }).join('・'); }
+
+// 上位ダイス × 上位技セットを N 戦で詰めて「最良構成 vs 初期構成」を出す。戻り値は全キャラ最大の勝率
+function pinch(title, base, topDice, topMoves, N, rng, goal) {
+  console.log('\n' + title);
+  console.log('| キャラ | 最強構成（技 / ダイス） | 最強の勝率 | 初期の勝率 | 差 |');
+  console.log('|---|---|---|---|---|');
+  var worst = 0, worstLabel = '';
+  CH.forEach(function (c) {
+    var b0 = base[c.id], best = null;
+    topDice[c.id].forEach(function (d) {
+      topMoves[c.id].forEach(function (m) {
+        var w = runVsAll(c.id, { moves: m.mi, chips: d.ch }, N, rng);
+        if (!best || w > best.w) best = { w: w, mi: m.mi, ch: d.ch };
+      });
+    });
+    if (best.w > worst) { worst = best.w; worstLabel = c.name; }
+    console.log('| ' + c.emoji + c.name + ' | ' + movesLabel(c, best.mi) + ' / ' + chipsLabel(c, best.ch) +
+      ' | ' + pc(best.w) + ' | ' + pc(b0) + ' | +' + ((best.w - b0) * 100).toFixed(1) + 'pt |');
+  });
+  console.log('- **最良構成の勝率（全キャラ最大）: ' + pc(worst) + '**（' + worstLabel + '）／目標は' +
+    (goal * 100).toFixed(0) + '%以下 → ' + (worst <= goal ? 'OK' : 'NG'));
+  return worst;
+}
+
+// 初期構成（★4技・素の面）の6体まわし勝率
+function baseWins(N, rng, quiet) {
+  var base = {};
+  if (!quiet) { console.log('| キャラ | 6体まわしの勝率 |'); console.log('|---|---|'); }
+  CH.forEach(function (c) {
+    base[c.id] = runVsAll(c.id, null, N, rng);
+    if (!quiet) console.log('| ' + c.emoji + c.name + ' | ' + pc(base[c.id]) + ' |');
+  });
+  return base;
+}
+
+// 技セット総当たり（C(7,4)=35・素の面）→ 上位 TOP
+function searchMoves(MS, NS, TOP, rng, quiet) {
+  var topMoves = {}, over70m = 0;
+  if (!quiet) {
+    console.log('| キャラ | 最強の技セット | 勝率 | 70%超の数 |');
+    console.log('|---|---|---|---|');
+  }
+  CH.forEach(function (c) {
+    var res = MS.map(function (mi) { return { mi: mi, w: runVsAll(c.id, { moves: mi }, NS, rng) }; });
+    res.sort(function (x, y) { return y.w - x.w; });
+    topMoves[c.id] = res.slice(0, TOP);
+    var n70 = res.filter(function (r) { return r.w > 0.70; }).length;
+    over70m += n70;
+    if (!quiet) console.log('| ' + c.emoji + c.name + ' | ' + movesLabel(c, res[0].mi) + ' | ' + pc(res[0].w) + ' | ' + n70 + ' |');
+  });
+  if (!quiet) console.log('- 探索段階で70%を超えた技セット: 合計 ' + over70m + ' 件（' + NS + '戦の粗い値）');
+  return topMoves;
+}
+
+// 持ち込み count 枚の最良構成 vs 初期構成（spec_v3.md §2.2 の実測）
+function bringSection(count, base, topMoves, N, NS, TOP, rng) {
+  console.log('\n## 持ち込み' + count + '枚の最良構成 vs 初期構成（各 ' + N + ' 戦・探索 ' + NS + ' 戦）');
+  console.log('持ち込みは基本4種（🌾🍚💧🔥）から重複ありで' + count + '枚。12スロットのどこに置くかも含めて全列挙する');
+  console.log('\n| キャラ | 12スロットへの置き方（' + count + '枚以下） |');
+  console.log('|---|---|');
+  var topDice = {};
+  CH.forEach(function (c) {
+    var DS = bringDiceSets(c, count);
+    var res = DS.map(function (ch) { return { ch: ch, w: runVsAll(c.id, { chips: ch }, NS, rng) }; });
+    res.sort(function (x, y) { return y.w - x.w; });
+    topDice[c.id] = res.slice(0, TOP);
+    console.log('| ' + c.emoji + c.name + ' | ' + DS.length + ' 通り |');
+  });
+  // 自動フォールバックの判定線は70%（本体の事前裁定）
+  var w = pinch('### 持ち込み' + count + '枚（上位' + TOP + 'ダイス × 上位' + TOP + '技セット）',
+    base, topDice, topMoves, N, rng, 0.70);
+  // 参考: 技を★のまま固定して「持ち込みだけ」の効きを見る（技セットの自由度は持ち込みとは別に元からある）
+  var star = {};
+  CH.forEach(function (c) { star[c.id] = [{ mi: c.star.slice(), w: 0 }]; });
+  pinch('### 参考: 技は★4技のまま・持ち込み' + count + '枚だけ',
+    base, topDice, star, N, rng, 0.70);
+  return w;
+}
 
 function runV3() {
   var rng = makeRng(20260903);
@@ -157,30 +272,11 @@ function runV3() {
 
   // ---- 1. 初期構成の総合勝率（回帰の目安。詳細は `node sim/sim.js` 側） ----
   console.log('## 1. 初期構成（★4技・素の面）の総合勝率');
-  console.log('| キャラ | 6体まわしの勝率 |');
-  console.log('|---|---|');
-  var base = {};
-  CH.forEach(function (c) {
-    base[c.id] = runVsAll(c.id, null, N, rng);
-    console.log('| ' + c.emoji + c.name + ' | ' + pc(base[c.id]) + ' |');
-  });
+  var base = baseWins(N, rng, false);
 
   // ---- 2. 技セット総当たり（35通り・素の面） ----
   console.log('\n## 2. 技セット総当たり（C(7,4)=35 × 6体・素の面）');
-  console.log('| キャラ | 最強の技セット | 勝率 | 70%超の数 |');
-  console.log('|---|---|---|---|');
-  var topMoves = {}, over70m = 0;
-  CH.forEach(function (c) {
-    var res = MS.map(function (mi) {
-      return { mi: mi, w: runVsAll(c.id, { moves: mi }, NS, rng) };
-    });
-    res.sort(function (x, y) { return y.w - x.w; });
-    topMoves[c.id] = res.slice(0, TOP);
-    var n70 = res.filter(function (r) { return r.w > 0.70; }).length;
-    over70m += n70;
-    console.log('| ' + c.emoji + c.name + ' | ' + movesLabel(c, res[0].mi) + ' | ' + pc(res[0].w) + ' | ' + n70 + ' |');
-  });
-  console.log('- 探索段階で70%を超えた技セット: 合計 ' + over70m + ' 件（' + NS + '戦の粗い値）');
+  var topMoves = searchMoves(MS, NS, TOP, rng, false);
 
   // ---- 3. ダイス総当たり（左・中・右の3個ぶん＝13^3 通り・★4技） ----
   console.log('\n## 3. ダイス総当たり（左・中・右それぞれ上限内の全通り × 6体・★4技）');
@@ -199,30 +295,9 @@ function runV3() {
   });
 
   // ---- 4. 上限内の最強構成 vs 初期構成（上位10×上位10を N 戦で詰める） ----
-  function pinch(title) {
-    console.log('\n' + title);
-    console.log('| キャラ | 最強構成（技 / ダイス） | 最強の勝率 | 初期の勝率 | 差 |');
-    console.log('|---|---|---|---|---|');
-    var worst = 0, worstLabel = '';
-    CH.forEach(function (c) {
-      var b0 = base[c.id];
-      var best = null;
-      topDice[c.id].forEach(function (d) {
-        topMoves[c.id].forEach(function (m) {
-          var w = runVsAll(c.id, { moves: m.mi, chips: d.ch }, N, rng);
-          if (!best || w > best.w) best = { w: w, mi: m.mi, ch: d.ch };
-        });
-      });
-      if (best.w > worst) { worst = best.w; worstLabel = c.name; }
-      console.log('| ' + c.emoji + c.name + ' | ' + movesLabel(c, best.mi) + ' / ' + chipsLabel(c, best.ch) +
-        ' | ' + pc(best.w) + ' | ' + pc(b0) + ' | +' + ((best.w - b0) * 100).toFixed(1) + 'pt |');
-    });
-    // 目標は 2026-09-03 の裁定で 80% → 85% に緩和（spec_v3.md 末尾「裁定」）
-    console.log('- **最良構成の勝率（全キャラ最大）: ' + pc(worst) + '**（' + worstLabel + '）／目標は85%以下 → ' +
-      (worst <= 0.85 ? 'OK' : 'NG（spec_v3.md 末尾の裁定を確認）'));
-    return worst;
-  }
-  pinch('## 4. 上限内の最強構成 vs 初期構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）');
+  // 目標は 2026-09-03 の裁定で 80% → 85% に緩和（spec_v3.md 末尾「裁定」）
+  pinch('## 4. 上限内の最強構成 vs 初期構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）',
+    base, topDice, topMoves, N, rng, 0.85);
 
   // ---- 5. ドロップ期待値（乱数不要の計算） ----
   console.log('\n## 5. ドロップ期待値（1周＝6勝。相手6体は泡3・香3で固定）');
@@ -243,6 +318,22 @@ function runV3() {
   console.log('- 1周で 通常6枚＋レア' + rareTotal + '枚。ただし✨は1ダイスに1面まで（初期構成の✨1面で埋まっている）ので、' +
     'どの個もカスタム4面をレアで埋めることはできない（spec_v3.md §2.1）。' +
     '差し替え先が4→12スロットに増えたぶん、集めきるまでの周回は長くなる（ドロップ率は据え置き）');
+
+  // ---- 6. 持ち込み（開始時のチップ）の最良構成 vs 初期構成 ----
+  bringSection(BRING_N || E.START_PICK.count, base, topMoves, N, NS, TOP, rng);
 }
 
-if (V3) runV3(); else runV2();
+// --bring / --bring=3 : 持ち込みの枚数だけを測り直す軽い経路（§3の13^3全列挙を回さない）
+function runBringOnly() {
+  var rng = makeRng(20260903);
+  var NS = Math.max(60, Math.floor(N / 10)), TOP = 10;
+  var count = BRING_N || E.START_PICK.count;
+  console.log('# 醸しコロ 持ち込み' + count + '枚の実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦）');
+  var base = baseWins(N, rng, true);
+  var topMoves = searchMoves(moveSets(), NS, TOP, rng, true);
+  bringSection(count, base, topMoves, N, NS, TOP, rng);
+}
+
+if (BRING_ONLY) runBringOnly();
+else if (V3) runV3();
+else runV2();

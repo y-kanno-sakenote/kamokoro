@@ -39,6 +39,12 @@
     wild:   { face: ['wild'],  emoji: '✨', rare: true }
   };
 
+  // 開始時の持ち込みチップ（v3.2・2026-09-04 ユーザー裁定 / spec_v3.md §2.2）
+  // 新しいセーブを作るときの1回だけ、基本4種（✨は蔵めぐりの報酬なので選べない）から count 枚を在庫に入れる。
+  // 2周目以降・再開時には出さない（集めたチップで戦う報酬ループを残すため）。
+  // count=2 は実測で決めた（4枚・3枚は「持ち込み最良 vs 初期」が70%を超えた。spec_v3.md §2.2の実測）。
+  var START_PICK = { count: 2, kinds: ['rice', 'koji', 'water', 'heat'] };
+
   // 技の種別: atk=攻撃 / heal=回復 / guard=次に受けるダメージ半減
   // hit = 当たり目の集合（ORIENT_ORDER の連続範囲が基本。安定3面 / 中2面 / ロマン1面 / 支え2面。
   //       「自分にN」のような不利な効果は広げない）
@@ -590,6 +596,7 @@
   return {
     CHARS: CHARS, ORIENT: ORIENT, ORIENT_ORDER: ORIENT_ORDER, ENERGY: ENERGY, WILD: WILD,
     CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP, RARE: RARE,
+    START_PICK: START_PICK,
     LIMIT: LIMIT, LIMIT_MSG: LIMIT_MSG,
     DICE_N: DICE_N, DICE_LABEL: DICE_LABEL,
     validateSlots: validateSlots, validateDie: validateDie, canPlaceChip: canPlaceChip,
