@@ -91,18 +91,18 @@
       ]
     },
     {
-      id: 'k9', no: '9', emoji: '🍈', name: '協会9号', type: '🌸香', hp: 90,
+      id: 'k9', no: '9', emoji: '🍈', name: '協会9号', type: '🌸香', hp: 95,
       slots: ['rice', 'koji', 'water', 'water', 'heat', 'wild'],
       die: ['y', 'y', 'y', 's', 'a', 'g'],
       star: [0, 2, 4, 6],
       moves: [
         { name: '吟醸香',       g: 'st', cost: ['water'],                    kind: 'atk',  power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },
         { name: 'ひとはだ',     g: 'st', cost: ['heat'],                     kind: 'atk',  power: 10, hit: ['s', 'a'],           eff: { plus: 5 } },
-        { name: '野白式',       g: 'md', cost: ['water', 'heat'],            kind: 'atk',  power: 15, hit: ['a', 'y'],           eff: { plus: 5 } },
+        { name: '野白式',       g: 'md', cost: ['water', 'heat'],            kind: 'atk',  power: 25, hit: ['a', 'y'],           eff: { plus: 5 } },
         { name: 'ねかせる',     g: 'md', cost: ['water', 'koji'],            kind: 'atk',  power: 20, hit: ['s', 'g'],           eff: { guard: true } },
         { name: '熊本の華',     g: 'rm', cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 35, hit: ['y'],                eff: { minus: 1 } },
         { name: 'おおころがり', g: 'rm', cost: ['water', 'water', 'koji'],   kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 15 } },
-        { name: '低温じっくり', g: 'sp', cost: ['koji', 'heat'],             kind: 'heal', power: 30, hit: ['s', 'y'],           eff: { healPlus: 10 } }
+        { name: '低温じっくり', g: 'sp', cost: ['koji', 'heat'],             kind: 'heal', power: 35, hit: ['s', 'y'],           eff: { healPlus: 10 } }
       ]
     },
     {
@@ -136,7 +136,7 @@
       ]
     },
     {
-      id: 'k1801', no: '1801', emoji: '🧬', name: '協会1801号', type: '🌸香', hp: 95,
+      id: 'k1801', no: '1801', emoji: '🧬', name: '協会1801号', type: '🌸香', hp: 105,
       ability: { name: 'ロマン', failSelf: 10 }, // 技が失敗すると自分に10
       slots: ['rice', 'koji', 'koji', 'water', 'heat', 'wild'],
       die: ['g', 'g', 'y', 'y', 's', 'a'],
@@ -144,11 +144,11 @@
       moves: [
         { name: 'セルレニン耐性',   g: 'st', cost: ['koji'],                   kind: 'atk',  power: 10, hit: ['a', 'y', 'g'],      eff: { plus: 5 } },
         { name: 'よくばり',         g: 'st', cost: ['heat'],                   kind: 'atk',  power: 10, hit: ['a', 'y'],           eff: { plus: 5 } },
-        { name: 'ハイブリッド',     g: 'md', cost: ['koji', 'water'],          kind: 'atk',  power: 15, hit: ['y', 'g'],           eff: { plus: 5 } },
+        { name: 'ハイブリッド',     g: 'md', cost: ['koji', 'water'],          kind: 'atk',  power: 30, hit: ['y', 'g'],           eff: { plus: 5 } },
         { name: 'ふんばる',         g: 'md', cost: ['koji', 'koji'],           kind: 'atk',  power: 20, hit: ['y'],                eff: { guard: true } },
         { name: 'りんご香バースト', g: 'rm', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 10 } },
         { name: 'ぜんぶだす',       g: 'rm', cost: ['koji', 'heat', 'heat'],   kind: 'atk',  power: 45, hit: ['a'],                eff: { self: 10 } },
-        { name: '親ゆずり',         g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 30, hit: ['s', 'a'],           eff: { healPlus: 10 } }
+        { name: '親ゆずり',         g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 35, hit: ['s', 'a'],           eff: { healPlus: 20 } }
       ]
     }
   ];
