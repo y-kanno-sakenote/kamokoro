@@ -118,11 +118,8 @@
   .die.big .f{border-color:var(--accent)}
   .die.en .f{border-width:2px}
   .f .two{font-size:.62em;letter-spacing:-1px}
-  /* キャラコロの面＝サイコロの目。3x3のマスに丸を置く（⚀の絵文字は端末差が大きいので使わない） */
-  .f .pips{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
-    width:64%;height:64%}
-  .f .pips i{align-self:center;justify-self:center;width:.26em;height:.26em;
-    border-radius:50%;background:var(--fg)}
+  /* キャラコロの面＝漢字1文字（静・湧・沸・躍・極。勢いが上がっていく順） */
+  .f .kj{font-size:.86em;font-weight:700;line-height:1;color:var(--fg)}
   .f0{transform:translateZ(var(--h))}
   .f1{transform:rotateY(180deg) translateZ(var(--h))}
   .f2{transform:rotateY(90deg) translateZ(var(--h))}
@@ -354,10 +351,10 @@
     ['s-select','s-prep','s-battle','s-end'].forEach(function(s){ $(s).classList.toggle('on', s===id); });
     window.scrollTo(0,0);
   }
-  function oNum(k){ return E.ORIENT[k].mark; }        // ①②③④⑥（1文字で読める）
+  function oKan(k){ return E.ORIENT[k].kanji; }      // 静湧沸躍極（勢いが上がっていく順）
   function en(k){ return E.ENERGY[k].emoji; }
   function facesLine(f){ return f.energy.map(E.faceEmoji).join(' '); }
-  function dieFaces(c){ return c.die.map(oNum).join(''); }
+  function dieFaces(c){ return c.die.map(oKan).join(''); }
   function dots(wins){
     var s = '';
     for (var i = 0; i < LAP; i++) s += (i < wins ? '●' : '○');
@@ -413,7 +410,7 @@
     return String(mv.power);
   }
   function orientLabel(mv){
-    var e = mv.eff || {}, s = oNum(mv.orient);
+    var e = mv.eff || {}, s = E.hitLabel(mv.hit);
     if (e.plus) return s + '+' + e.plus;
     if (e.healPlus) return s + '回復+' + e.healPlus;
     if (e.heal) return s + '回復' + e.heal;
@@ -639,12 +636,8 @@
   function enFaceHtml(f){
     return '<span class="' + (f.length > 1 ? 'two' : '') + '">' + E.faceEmoji(f) + '</span>';
   }
-  // 3x3のマス番号（左上=1 … 右下=9）に丸を置く。5の目は無い
-  var PIPS = { 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 6:[1,3,4,6,7,9] };
   function charFaceHtml(k){
-    var on = PIPS[E.ORIENT[k].pips], h = '';
-    for (var i = 1; i <= 9; i++) h += (on.indexOf(i) >= 0 ? '<i></i>' : '<b></b>');
-    return '<span class="pips">' + h + '</span>';
+    return '<span class="kj">' + oKan(k) + '</span>';
   }
   // 面構成（チップ差し替え込み）から立方体を作る
   function buildDice(side, c){
@@ -738,7 +731,7 @@
     else s = mv.name + '！ ' + r.damage + 'ダメージ';
     if (r.halved) s += '（半減）';
     if (r.orientHit) {
-      s += '　' + oNum(r.orient) + 'ぴったり！';
+      s += '　' + oKan(r.orient) + 'ぴったり！';
       if (r.minus) s += ' 相手エネコロ-1';
       if (r.selfDamage) s += ' 自分に' + r.selfDamage;
       if (mv.kind === 'atk' && r.guard) s += ' つぎ半減';
