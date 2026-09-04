@@ -211,6 +211,11 @@
     rice: '🌾は2面まで', koji: '🍚は2面まで', water: '💧は2面まで', heat: '🔥は2面まで',
     wild: '✨は1面まで'
   };
+  // 素の面と同じ種類のチップはそのスロットに置けない（面が変わらないのに在庫だけ減る＝レアの無駄使い。2026-09-04追加）
+  var SAME_FACE_MSG = '同じ面です';
+  function isSameAsNativeFace(char, slot, chipKey) {
+    return !!(chipKey && CHIPS[chipKey] && CHIPS[chipKey].face[0] === char.slots[slot]);
+  }
 
   // 上限は **1個ごと** に効く（v3.1）。3個合計の比率は3個とも同じ上限なのでv3と同じになる。
   // スロット i の実効面（チップがあればその面・無ければ素の面）。chips1 = ダイス1個ぶん
@@ -247,6 +252,9 @@
   }
   // die 個目の slot に chipKey（null=はずす）をはめられるか（上限はその個の中だけで見る）
   function canPlaceChip(char, chips, die, slot, chipKey) {
+    if (isSameAsNativeFace(char, slot, chipKey)) {
+      return { ok: false, kind: 'same', reason: SAME_FACE_MSG };
+    }
     var next = normalizeChips(chips)[die].slice();
     next[slot] = chipKey || null;
     return validateDie(char, next);
@@ -258,6 +266,13 @@
     // 廃止済み（CHIPSに無い）チップは素の面へ戻す。2026-09-03の2エネ廃止で出る旧セーブ対応
     for (i = 0; i < cur.length; i++) {
       if (cur[i] && !CHIPS[cur[i]]) cur[i] = null;
+    }
+    // 素の面と同じチップがはまっている旧セーブは外して在庫へ返す（2026-09-04のルール追加対応）
+    for (i = 0; i < cur.length; i++) {
+      if (cur[i] && isSameAsNativeFace(char, i, cur[i])) {
+        removed.push(cur[i]);
+        cur[i] = null;
+      }
     }
     var guard = 0, v;
     while (!(v = validateDie(char, cur)).ok && guard++ < 8) {
