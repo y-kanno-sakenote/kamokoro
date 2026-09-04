@@ -109,15 +109,16 @@ function moveSets() {
     for (var c = b + 1; c < 7; c++) for (var d = c + 1; d < 7; d++) out.push([a, b, c, d]);
   return out;
 }
-// カスタム4スロット（各スロット = 素の面 orチップ5種）を上限ルール内で全列挙し、
-// 6面が同じになるものは畳む（spec_v3.md §2.1: ✨1面まで・素の面の✨も数える）
-function diceSets(char) {
+// ダイス1個ぶん: カスタム4スロット（各スロット = 素の面 orチップ5種）を上限ルール内で全列挙し、
+// 6面が同じになるものは畳む（spec_v3.md §2.1: ✨1面まで・同エネは固定込み2面まで）
+// 実測すると全キャラ13通りに畳まれる
+function dieSets(char) {
   var opts = [null].concat(E.CHIP_ORDER), out = [], seen = {}, L = opts.length;
   for (var a = 0; a < L; a++) for (var b = 0; b < L; b++)
     for (var c = 0; c < L; c++) for (var d = 0; d < L; d++) {
       var ch = [opts[a], opts[b], opts[c], opts[d]];
-      if (!E.validateSlots(char, ch).ok) continue;
-      var sig = E.facesSig(E.buildEnergy(char, ch).slice().sort(function (x, y) {
+      if (!E.validateDie(char, ch).ok) continue;
+      var sig = E.facesSig(E.buildDie(char, ch).slice().sort(function (x, y) {
         return x.join('+') < y.join('+') ? -1 : 1;
       }));
       if (seen[sig]) continue;
@@ -125,10 +126,22 @@ function diceSets(char) {
     }
   return out;
 }
-function chipsLabel(char, ch) {
+// v3.1: エネコロは左・中・右の3個。個ごとに別々の構成が組めるので、
+// 1個ぶんの候補（13通り）の**順序つき直積 13^3 = 2197 通りを全列挙**する。
+// （並びが意味を持つ＝先攻1手目と「相手の次エネコロ-1」で右から振れなくなるため畳めない）
+function diceSets(char) {
+  var D = dieSets(char), out = [], i, j, k;
+  for (i = 0; i < D.length; i++) for (j = 0; j < D.length; j++) for (k = 0; k < D.length; k++)
+    out.push([D[i], D[j], D[k]]);
+  return out;
+}
+function dieLabel(char, ch) {
   return ch.map(function (k, i) {
     return k ? E.CHIPS[k].emoji : '(' + E.ENERGY[char.slots[i]].emoji + ')';
-  }).join(' ');
+  }).join('');
+}
+function chipsLabel(char, cs) {
+  return cs.map(function (ch, d) { return E.DICE_LABEL[d] + dieLabel(char, ch); }).join(' ');
 }
 
 function movesLabel(char, mi) { return mi.map(function (i) { return char.moves[i].name; }).join('・'); }
@@ -139,7 +152,8 @@ function runV3() {
   var NS = Math.max(60, Math.floor(N / 10));   // 探索用（粗く回す）
   var TOP = 10;
 
-  console.log('# 醸しコロ v3 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）\n');
+  console.log('# 醸しコロ v3.1 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
+  console.log('エネコロは左・中・右の3個。3個それぞれ別々にカスタムできる（初期は3個とも同じ構成）\n');
 
   // ---- 1. 初期構成の総合勝率（回帰の目安。詳細は `node sim/sim.js` 側） ----
   console.log('## 1. 初期構成（★4技・素の面）の総合勝率');
@@ -168,19 +182,20 @@ function runV3() {
   });
   console.log('- 探索段階で70%を超えた技セット: 合計 ' + over70m + ' 件（' + NS + '戦の粗い値）');
 
-  // ---- 3. ダイス総当たり（495通り・★4技） ----
-  console.log('\n## 3. ダイス総当たり（上限内のカスタム全通り × 6体・★4技）');
-  console.log('| キャラ | 通り数 | 最強のダイス | 勝率 |');
-  console.log('|---|---|---|---|');
+  // ---- 3. ダイス総当たり（左・中・右の3個ぶん＝13^3 通り・★4技） ----
+  console.log('\n## 3. ダイス総当たり（左・中・右それぞれ上限内の全通り × 6体・★4技）');
+  console.log('| キャラ | 1個の候補 | 3個の通り数 | 最強のダイス | 勝率 |');
+  console.log('|---|---|---|---|---|');
   var topDice = {};
   CH.forEach(function (c) {
-    var DS = diceSets(c);
+    var D1 = dieSets(c), DS = diceSets(c);
     var res = DS.map(function (ch) {
       return { ch: ch, w: runVsAll(c.id, { chips: ch }, NS, rng) };
     });
     res.sort(function (x, y) { return y.w - x.w; });
     topDice[c.id] = res.slice(0, TOP);
-    console.log('| ' + c.emoji + c.name + ' | ' + DS.length + ' | ' + chipsLabel(c, res[0].ch) + ' | ' + pc(res[0].w) + ' |');
+    console.log('| ' + c.emoji + c.name + ' | ' + D1.length + ' | ' + DS.length + ' | ' +
+      chipsLabel(c, res[0].ch) + ' | ' + pc(res[0].w) + ' |');
   });
 
   // ---- 4. 上限内の最強構成 vs 初期構成（上位10×上位10を N 戦で詰める） ----
@@ -225,8 +240,9 @@ function runV3() {
   E.CHIP_ORDER.forEach(function (k) {
     console.log('| ' + E.CHIPS[k].emoji + ' | ' + exp[k].toFixed(2) + ' |');
   });
-  console.log('- 1周で 通常6枚＋レア' + rareTotal + '枚。ただし✨は1ダイス1面まで（初期構成の✨1面で埋まっている）ので、' +
-    'カスタム4面をレアで埋めることはできない（spec_v3.md §2.1）');
+  console.log('- 1周で 通常6枚＋レア' + rareTotal + '枚。ただし✨は1ダイスに1面まで（初期構成の✨1面で埋まっている）ので、' +
+    'どの個もカスタム4面をレアで埋めることはできない（spec_v3.md §2.1）。' +
+    '差し替え先が4→12スロットに増えたぶん、集めきるまでの周回は長くなる（ドロップ率は据え置き）');
 }
 
 if (V3) runV3(); else runV2();

@@ -154,16 +154,41 @@
   }
 
   // ---- エネコロの組み立て --------------------------------------------------
+  // 2026-09-04（v3.1）: エネコロは **左・中・右の3個**。表示順＝振るときの並び。
+  // 3個それぞれが「固定2面＋カスタム4面」を持ち、チップは1個ずつ別々にはめられる。
+  // 初期は3個とも同じ構成（＝v3までの1種類）なので、初期構成のバランスは完全に同一。
+  var DICE_N = 3;
+  var DICE_LABEL = ['左', '中', '右'];
+
   // 面の値は「エネキーの配列」: ['koji'] / ['koji','koji'] / ['wild']
-  // chips = カスタム4スロットの中身（null=素の面 / チップキー）
-  function buildEnergy(char, chips) {
+  // chips1 = ダイス1個ぶんのカスタム4スロット（null=素の面 / チップキー）
+  function buildDie(char, chips1) {
     var faces = [], i;
     for (i = 0; i < char.fixed.length; i++) faces.push([char.fixed[i]]);
     for (i = 0; i < char.slots.length; i++) {
-      var c = chips && chips[i];
+      var c = chips1 && chips1[i];
       faces.push(c && CHIPS[c] ? CHIPS[c].face.slice() : [char.slots[i]]);
     }
     return faces;
+  }
+  // chips を必ず「3個 × 4スロット」に整える。
+  // 旧セーブ（1個ぶんの4スロット）を渡されたら3個に複製する（壊さない）
+  function normalizeChips(chips) {
+    var old = !!(chips && chips.length === 4 && !Array.isArray(chips[0]));
+    var out = [], i, j;
+    for (i = 0; i < DICE_N; i++) {
+      var src = old ? chips : (chips && chips[i]);
+      var row = [null, null, null, null];
+      if (src && src.length === 4) for (j = 0; j < 4; j++) row[j] = src[j] || null;
+      out.push(row);
+    }
+    return out;
+  }
+  // 3個ぶんの6面（[[面×6],[面×6],[面×6]]）
+  function buildEnergy(char, chips) {
+    var cs = normalizeChips(chips), out = [];
+    for (var i = 0; i < DICE_N; i++) out.push(buildDie(char, cs[i]));
+    return out;
   }
   function faceEmoji(face) {
     var s = '';
@@ -172,6 +197,10 @@
   }
   function facesSig(faces) {
     return faces.map(function (f) { return f.join('+'); }).join(',');
+  }
+  // 3個ぶんの面シグネチャ（確率キャッシュのキーに使う。個ごとに面が違うので3個ぶん要る）
+  function diceSig(dice) {
+    return dice.map(facesSig).join('/');
   }
 
   // ---- カスタム上限（spec_v3.md §2.1・§3.1・2026-09-03改訂） ----------------
@@ -183,46 +212,55 @@
     wild: '✨は1面まで'
   };
 
-  // スロット i の実効面（チップがあればその面・無ければ素の面）
-  function slotFace(char, chips, i) {
-    var c = chips && chips[i];
+  // 上限は **1個ごと** に効く（v3.1）。3個合計の比率は3個とも同じ上限なのでv3と同じになる。
+  // スロット i の実効面（チップがあればその面・無ければ素の面）。chips1 = ダイス1個ぶん
+  function slotFace(char, chips1, i) {
+    var c = chips1 && chips1[i];
     return (c && CHIPS[c]) ? CHIPS[c].face : [char.slots[i]];
   }
-  // 固定2面＋カスタム4面（素の面 or チップ）を種類ごとに数える
-  function countSlots(char, chips) {
+  // ダイス1個の固定2面＋カスタム4面（素の面 or チップ）を種類ごとに数える
+  function countSlots(char, chips1) {
     var n = { rice: 0, koji: 0, water: 0, heat: 0, wild: 0 }, i, t;
     for (i = 0; i < char.fixed.length; i++) { t = char.fixed[i]; n[t]++; }
     for (i = 0; i < char.slots.length; i++) {
-      t = slotFace(char, chips, i)[0];
+      t = slotFace(char, chips1, i)[0];
       n[t]++;
     }
     return n;
   }
-  // OK/理由を返す。reason は空文字（OK）か LIMIT_MSG のどれか
-  function validateSlots(char, chips) {
-    var n = countSlots(char, chips);
+  // ダイス1個ぶんの判定。OK/理由を返す（reason は空文字か LIMIT_MSG のどれか）
+  function validateDie(char, chips1) {
+    var n = countSlots(char, chips1);
     for (var k in LIMIT) {
       if (n[k] > LIMIT[k]) return { ok: false, kind: k, reason: LIMIT_MSG[k] };
     }
     return { ok: true, kind: null, reason: '' };
   }
-  // slot に chipKey（null=はずす）をはめられるか
-  function canPlaceChip(char, chips, slot, chipKey) {
-    var next = (chips || [null, null, null, null]).slice();
-    next[slot] = chipKey || null;
-    return validateSlots(char, next);
+  // 3個まとめての判定。どの個で引っかかったかを die に入れて返す
+  function validateSlots(char, chips) {
+    var cs = normalizeChips(chips);
+    for (var i = 0; i < DICE_N; i++) {
+      var v = validateDie(char, cs[i]);
+      if (!v.ok) return { ok: false, die: i, kind: v.kind, reason: v.reason };
+    }
+    return { ok: true, die: -1, kind: null, reason: '' };
   }
-  // 上限違反・廃止チップの構成を直す（違反／未知のチップを後ろから外す）
-  // 戻り値 { chips: 直した4スロット, removed: [外したチップキー]（在庫に戻せるもののみ） }
-  function repairSlots(char, chips) {
-    var cur = (chips && chips.length === 4) ? chips.slice() : [null, null, null, null];
+  // die 個目の slot に chipKey（null=はずす）をはめられるか（上限はその個の中だけで見る）
+  function canPlaceChip(char, chips, die, slot, chipKey) {
+    var next = normalizeChips(chips)[die].slice();
+    next[slot] = chipKey || null;
+    return validateDie(char, next);
+  }
+  // ダイス1個ぶんの上限違反・廃止チップを直す
+  function repairDie(char, chips1) {
+    var cur = (chips1 && chips1.length === 4) ? chips1.slice() : [null, null, null, null];
     var removed = [], i;
     // 廃止済み（CHIPSに無い）チップは素の面へ戻す。2026-09-03の2エネ廃止で出る旧セーブ対応
     for (i = 0; i < cur.length; i++) {
       if (cur[i] && !CHIPS[cur[i]]) cur[i] = null;
     }
     var guard = 0, v;
-    while (!(v = validateSlots(char, cur)).ok && guard++ < 8) {
+    while (!(v = validateDie(char, cur)).ok && guard++ < 8) {
       var done = false;
       for (i = cur.length - 1; i >= 0 && !done; i--) {
         var c = cur[i];
@@ -235,28 +273,42 @@
     }
     return { chips: cur, removed: removed };
   }
+  // 3個ぶんまとめて直す（旧セーブ＝1個ぶんを渡されたら normalizeChips が3個に複製する）
+  // 戻り値 { chips: 直した3個×4スロット, removed: [外したチップキー]（在庫に戻せるもののみ） }
+  function repairSlots(char, chips) {
+    var cs = normalizeChips(chips), out = [], removed = [];
+    for (var i = 0; i < DICE_N; i++) {
+      var r = repairDie(char, cs[i]);
+      out.push(r.chips);
+      removed = removed.concat(r.removed);
+    }
+    return { chips: out, removed: removed };
+  }
 
   // CPUの周回強化（spec_v3.md §3.1・段2）は実測で効果が無く2026-09-03に削除した。
   // 詳しい経緯は spec_v3.md §3.1 参照。cpuLapChips は廃止（呼び出し側もあわせて削除済み）。
 
-  // 出撃するキャラ（＝素のキャラ定義＋選んだ4技＋組み立てたエネコロ6面）
-  // load = { moves:[i,i,i,i], chips:[null,'koji',null,'wild'] }。省略時は★4技＋素の面
+  // 出撃するキャラ（＝素のキャラ定義＋選んだ4技＋組み立てたエネコロ3個×6面）
+  // load = { moves:[i,i,i,i], chips:[[左4],[中4],[右4]] }。省略時は★4技＋素の面
+  // chips に旧形式（1個ぶんの4スロット）を渡すと3個に複製される
   function buildFighter(charOrId, load) {
     var base = typeof charOrId === 'string' ? getChar(charOrId) : charOrId;
     if (base && base.base) base = base.base; // すでに組み立て済みなら素に戻す
     load = load || {};
     var mi = load.moves && load.moves.length === 4 ? load.moves : base.star;
-    var chips = load.chips && load.chips.length === 4 ? load.chips : [null, null, null, null];
-    var faces = buildEnergy(base, chips);
+    var chips = normalizeChips(load.chips);
+    var dice = buildEnergy(base, chips);
+    var pkey = base.id + '#' + diceSig(dice);
     var moves = [];
     for (var i = 0; i < mi.length; i++) moves.push(base.moves[mi[i]]);
     return {
       base: base, id: base.id, no: base.no, emoji: base.emoji, name: base.name,
       type: base.type, hp: base.hp, ability: base.ability, die: base.die,
-      moveIdx: mi.slice(), chips: chips.slice(),
-      energy: faces,
+      moveIdx: mi.slice(), chips: chips,
+      energy: dice,                       // [左6面, 中6面, 右6面]
       moves: moves,
-      pkey: base.id + '#' + facesSig(faces)
+      pkey: pkey,
+      pcache: probCacheFor(pkey)          // 面が同じなら使い回す（simで大量に組み立てるので）
     };
   }
 
@@ -266,10 +318,12 @@
 
   // キャラコロを1個振る → 向きキー
   function rollChar(char, rng) { return pick(char.die, rng); }
-  // エネコロをn個振る → 面（エネキー配列）の配列
+  // エネコロを左から n 個振る → 面（エネキー配列）の配列
+  // 個ごとに面構成が違うので、i 番目のダイスの面から引く。
+  // n=2（先攻1手目）は左・中、n=1（-1が重なった下限）は左だけ＝右から振れなくなる
   function rollEnergy(char, n, rng) {
     var out = [];
-    for (var i = 0; i < n; i++) out.push(pick(char.energy, rng));
+    for (var i = 0; i < n; i++) out.push(pick(char.energy[i], rng));
     return out;
   }
 
@@ -292,20 +346,26 @@
     return deficit <= wild;
   }
 
-  // ---- 確率（6^n の厳密列挙・面の値が可変でもそのまま効く） ----------------
+  // ---- 確率（6^n の厳密列挙・3個それぞれの面が違う前提） -------------------
+  // n=3 なら左・中・右の 6×6×6、n=2 なら左・中の 6×6、n=1 なら左の 6 通り。
+  // キャッシュキーの pkey には3個ぶんの面シグネチャが入っている（diceSig）
   var _probCache = {};
+  function probCacheFor(pkey) {
+    return _probCache[pkey] || (_probCache[pkey] = {});
+  }
   function successProb(char, move, n) {
-    var key = (char.pkey || char.id) + '|' + move.name + '|' + n;
-    if (_probCache[key] != null) return _probCache[key];
-    var faces = char.energy, total = Math.pow(6, n), ok = 0;
+    var cache = char.pcache || probCacheFor(char.pkey || char.id);
+    var key = move.name + '|' + n;
+    if (cache[key] != null) return cache[key];
+    var dice = char.energy, total = Math.pow(6, n), ok = 0;
     var roll = new Array(n), i;
     for (var c = 0; c < total; c++) {
       var t = c;
-      for (i = 0; i < n; i++) { roll[i] = faces[t % 6]; t = Math.floor(t / 6); }
+      for (i = 0; i < n; i++) { roll[i] = dice[i][t % 6]; t = Math.floor(t / 6); }
       if (matchCost(move.cost, roll)) ok++;
     }
     var p = ok / total;
-    _probCache[key] = p;
+    cache[key] = p;
     return p;
   }
 
@@ -516,11 +576,13 @@
     CHARS: CHARS, ORIENT: ORIENT, ORIENT_ORDER: ORIENT_ORDER, ENERGY: ENERGY, WILD: WILD,
     CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP, RARE: RARE,
     LIMIT: LIMIT, LIMIT_MSG: LIMIT_MSG,
-    validateSlots: validateSlots, canPlaceChip: canPlaceChip,
-    repairSlots: repairSlots, countSlots: countSlots, slotFace: slotFace,
+    DICE_N: DICE_N, DICE_LABEL: DICE_LABEL,
+    validateSlots: validateSlots, validateDie: validateDie, canPlaceChip: canPlaceChip,
+    repairSlots: repairSlots, repairDie: repairDie,
+    countSlots: countSlots, slotFace: slotFace, normalizeChips: normalizeChips,
     getChar: getChar,
-    buildEnergy: buildEnergy, buildFighter: buildFighter,
-    faceEmoji: faceEmoji, facesSig: facesSig, typeKey: typeKey,
+    buildDie: buildDie, buildEnergy: buildEnergy, buildFighter: buildFighter,
+    faceEmoji: faceEmoji, facesSig: facesSig, diceSig: diceSig, typeKey: typeKey,
     rollDrop: rollDrop, rollRare: rollRare,
     rollChar: rollChar, rollEnergy: rollEnergy, matchCost: matchCost,
     successProb: successProb, orientProb: orientProb, hitLabel: hitLabel,

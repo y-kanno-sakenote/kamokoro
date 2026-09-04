@@ -53,8 +53,11 @@
   .pv .o{font-size:11px;color:var(--accent);white-space:nowrap;width:76px;flex:none;text-align:right}
   .pv .wn{font-size:9px}
 
-  .facebar{display:flex;gap:5px;margin-top:2px}
-  .fs{flex:1;height:44px;border-radius:10px;background:var(--panel);border:2px solid var(--line);
+  /* 準備: エネコロ3個（左・中・右）を3行で。1行＝固定2面＋カスタム4面 */
+  .dierow{display:flex;align-items:center;gap:6px;margin-top:4px}
+  .dierow .dl{font-size:11px;color:var(--sub);width:14px;flex:none;text-align:center}
+  .facebar{flex:1;display:flex;gap:5px}
+  .fs{flex:1;height:40px;border-radius:10px;background:var(--panel);border:2px solid var(--line);
     display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
   .fs .v{font-size:21px;line-height:1}
   .fs .v.two{font-size:15px;letter-spacing:-1px}
@@ -104,8 +107,13 @@
   .stage.me{justify-content:flex-end}      /* 自分のHPバーのすぐ上 */
   .turnlb{font-size:12px;color:var(--sub);min-height:16px;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;max-width:100%}
-  .dicerow{display:flex;gap:12px;align-items:center;justify-content:center;padding:9px 0}
-  .ens{display:flex;gap:7px;align-items:center}
+  .dicerow{display:flex;gap:12px;align-items:flex-start;justify-content:center;padding:7px 0}
+  .ens{display:flex;gap:7px;align-items:flex-start}
+  /* ダイス1個＋その個の6面（真下に小さく）。3個それぞれ面構成が違うので個別に出す */
+  .dcol{display:flex;flex-direction:column;align-items:center;gap:3px}
+  .fl{font-size:10px;line-height:1.15;color:var(--sub);text-align:center;
+    letter-spacing:-.5px;white-space:nowrap}
+  .stage.foe .fl{font-size:9px}
   /* 立方体ダイス: .die=枠（奥行き） / .cube=回る本体 / .f=6面 */
   .die{position:relative;flex:none;perspective:520px}
   .die.big{width:76px;height:76px;font-size:40px;--h:38px;--r:8px}
@@ -126,7 +134,7 @@
   .f3{transform:rotateY(-90deg) translateZ(var(--h))}
   .f4{transform:rotateX(90deg) translateZ(var(--h))}
   .f5{transform:rotateX(-90deg) translateZ(var(--h))}
-  .die.off{opacity:.22}
+  .dcol.off{opacity:.22}
   .die.bnc{animation:dbounce .18s ease-out}
   @keyframes dbounce{0%{transform:translateY(0)}40%{transform:translateY(-5px)}100%{transform:translateY(0)}}
   /* 相手側は一回り小さく */
@@ -134,8 +142,8 @@
   .stage.foe .die.en{width:37px;height:37px;font-size:19px;--h:18.5px;--r:6px}
   .stage.foe .die .f{border-width:2px}
   /* 手番でない側は薄く残す（直前の出目は消さない） */
-  .stage.dim .die{opacity:.4}
-  .stage.dim .die.off{opacity:.12}
+  .stage.dim .dcol{opacity:.45}
+  .stage.dim .dcol.off{opacity:.14}
   .stage.dim .result{opacity:.45}
   .stage.dim .turnlb{opacity:.6}
   /* 動きを減らす設定では回さずに即座に出目を出す */
@@ -145,10 +153,6 @@
   }
   .result{font-size:17px;font-weight:700;min-height:22px;line-height:1.3;text-align:center}
   .stage.foe .result{font-size:14px;min-height:19px}
-  /* 自分・相手の面構成（常時表示・確率は出さない） */
-  .faces{font-size:12px;color:var(--sub);line-height:1.25;white-space:nowrap;letter-spacing:.02em}
-  .stage.foe .faces{font-size:11px;opacity:.8}
-
   /* 技ボタン: 技名 / コスト 威力　向き→おまけ の2段 */
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
   .mv{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;
@@ -197,8 +201,8 @@
     <div class="prow" id="prep-char"></div>
     <div class="ttl">わざを4つえらぶ <span id="prep-cnt"></span></div>
     <div class="pool" id="prep-pool"></div>
-    <div class="ttl">エネコロ（🔒はかえられない）</div>
-    <div class="facebar" id="prep-dice"></div>
+    <div class="ttl">エネコロ3個（左から振る・🔒はかえられない）</div>
+    <div id="prep-dice"></div>
     <div class="inv" id="prep-inv"></div>
     <button class="btn" id="go">たたかう</button>
   </section>
@@ -215,22 +219,20 @@
     <div class="stage foe dim" id="stage-foe">
       <div class="turnlb" id="lb-foe"></div>
       <div class="dicerow">
-        <div class="die big" id="dchar-foe"></div>
+        <div class="dcol"><div class="die big" id="dchar-foe"></div><div class="fl" id="fl-foe-c"></div></div>
         <div class="ens" id="denergy-foe"></div>
       </div>
       <div class="result" id="res-foe"></div>
-      <div class="faces" id="faces-foe"></div>
     </div>
 
     <!-- 自分のダイス置き場（自分のHPバーのすぐ上） -->
     <div class="stage me dim" id="stage-me">
       <div class="turnlb" id="lb-me"></div>
       <div class="dicerow">
-        <div class="die big" id="dchar-me"></div>
+        <div class="dcol"><div class="die big" id="dchar-me"></div><div class="fl" id="fl-me-c"></div></div>
         <div class="ens" id="denergy-me"></div>
       </div>
       <div class="result" id="res-me"></div>
-      <div class="faces" id="faces-me"></div>
     </div>
 
     <div class="fighter" id="f-me">
@@ -285,10 +287,24 @@
     var s = { v:3, chips:{}, dice:{}, moves:{}, run:null };
     E.CHIP_ORDER.forEach(function(k){ s.chips[k] = 0; });
     E.CHARS.forEach(function(c){
-      s.dice[c.id] = [null,null,null,null];
+      s.dice[c.id] = E.normalizeChips(null);   // 3個 × 4スロット（初期は3個とも素の面）
       s.moves[c.id] = c.star.slice();
     });
     return s;
+  }
+  // スロット4つ（null か チップキーの文字列）
+  function okSlots(a){
+    if (!Array.isArray(a) || a.length !== 4) return false;
+    for (var i = 0; i < 4; i++) if (a[i] !== null && typeof a[i] !== 'string') return false;
+    return true;
+  }
+  // dice は「3個 × 4スロット」。旧セーブの「1個ぶんの4スロット」も通す（loadSaveで3個に複製する）
+  function okDice(d){
+    if (!Array.isArray(d)) return false;
+    if (d.length === 4 && !Array.isArray(d[0])) return okSlots(d);   // 旧形式
+    if (d.length !== E.DICE_N) return false;
+    for (var i = 0; i < E.DICE_N; i++) if (!okSlots(d[i])) return false;
+    return true;
   }
   function validSave(s){
     if (!s || s.v !== 3 || !s.chips || !s.dice || !s.moves) return false;
@@ -299,8 +315,8 @@
     }
     E.CHARS.forEach(function(c){
       var d = s.dice[c.id], m = s.moves[c.id];
-      if (!Array.isArray(d) || d.length !== 4) { ok = false; return; }
       // 未知のチップキー（廃止された2エネ等の旧セーブ）はここで弾かず repairAllSlots に素の面へ戻させる
+      if (!okDice(d)) { ok = false; return; }
       if (!Array.isArray(m) || m.length !== 4) { ok = false; return; }
       var seen = {};
       for (var k = 0; k < 4; k++){
@@ -323,7 +339,9 @@
     var s = null;
     try { s = JSON.parse(localStorage.getItem(SKEY)); } catch(e) { s = null; }
     if (!validSave(s)) s = freshSave();   // 壊れていたら丸ごと捨てて初期化
-    repairAllSlots(s);                    // 上限違反（✨1面・2エネ2面）があれば素の面へ戻す
+    // 旧セーブ（エネコロ1種類ぶんの4スロット）は3個に複製して読み込む
+    E.CHARS.forEach(function(c){ s.dice[c.id] = E.normalizeChips(s.dice[c.id]); });
+    repairAllSlots(s);                    // 上限違反（1個ごとに ✨1面・同エネ2面）があれば素の面へ戻す
     if (s.run && s.run.lap == null) s.run.lap = 1; // 旧セーブ互換
     return s;
   }
@@ -343,7 +361,8 @@
   save = loadSave();
 
   // ---------------- 小物 ----------------
-  var st = null, myF = null, foeF = null, busy = false, logs = [], prepChar = null, sheetSlot = -1;
+  var st = null, myF = null, foeF = null, busy = false, logs = [], prepChar = null;
+  var sheetDie = -1, sheetSlot = -1;
   var lastGot = [];
 
   function $(id){ return document.getElementById(id); }
@@ -353,7 +372,12 @@
   }
   function oKan(k){ return E.ORIENT[k].kanji; }      // 静湧沸躍極（勢いが上がっていく順）
   function en(k){ return E.ENERGY[k].emoji; }
-  function facesLine(f){ return f.energy.map(E.faceEmoji).join(' '); }
+  // 3個ぶんの面構成（キャラ選択カード用）。3個とも同じなら1行にまとめる（初期はいつも1行）
+  function facesLines(f){
+    var ls = f.energy.map(function(d){ return d.map(E.faceEmoji).join(''); });
+    var same = ls[0] === ls[1] && ls[1] === ls[2];
+    return same ? ls[0] : ls.join('<br>');
+  }
   function dieFaces(c){ return c.die.map(oKan).join(''); }
   function dots(wins){
     var s = '';
@@ -385,7 +409,7 @@
       d.className = 'card' + (live ? '' : ' off');
       d.innerHTML = '<div class="em">'+c.emoji+'</div><div class="nm">'+c.name+'</div>'+
                     '<div class="tp">'+c.type+'</div><div class="hp">HP '+c.hp+'</div>'+
-                    '<div class="fc">'+facesLine(f)+'<br>'+dieFaces(c)+'</div>'+
+                    '<div class="fc">'+facesLines(f)+'<br>'+dieFaces(c)+'</div>'+
                     (save.run && live ? '<div class="go">つづきから</div>' : '');
       if (live) d.onclick = function(){ chooseChar(c.id); };
       box.appendChild(d);
@@ -421,9 +445,11 @@
   }
   // そのエネの面を1面も持っていないか（✨は穴埋めなので「持っている」には数えない）
   function missingSet(){
-    var faces = E.buildEnergy(prepChar, save.dice[prepChar.id]);
+    var dice = E.buildEnergy(prepChar, save.dice[prepChar.id]);   // 3個ぶん
     var have = {};
-    faces.forEach(function(f){ f.forEach(function(k){ have[k] = 1; }); });
+    dice.forEach(function(faces){
+      faces.forEach(function(f){ f.forEach(function(k){ have[k] = 1; }); });
+    });
     return { has: function(k){ return !!have[k]; } };
   }
   // ⚠️は「選んだ4技」のコストにだけ出す（禁止はしない）
@@ -454,19 +480,32 @@
       pool.appendChild(d);
     });
 
-    var faces = E.buildEnergy(prepChar, save.dice[id]);
+    // エネコロ3個（左・中・右）。1行＝その個の固定2面＋カスタム4面
+    var dice = E.buildEnergy(prepChar, save.dice[id]);
     var bar = $('prep-dice');
     bar.innerHTML = '';
-    faces.forEach(function(f, i){
-      var fixed = i < prepChar.fixed.length;
-      var slot = i - prepChar.fixed.length;
-      var chip = fixed ? null : save.dice[id][slot];
-      var d = document.createElement('div');
-      d.className = 'fs' + (fixed ? ' lock' : '') + (chip ? ' chip' : '');
-      d.innerHTML = '<span class="v'+(f.length>1?' two':'')+'">'+E.faceEmoji(f)+'</span>'+
-                    (fixed ? '<i>🔒</i>' : '');
-      if (!fixed) d.onclick = function(){ openSheet(slot); };
-      bar.appendChild(d);
+    dice.forEach(function(faces, di){
+      var row = document.createElement('div');
+      row.className = 'dierow';
+      var lab = document.createElement('div');
+      lab.className = 'dl';
+      lab.textContent = E.DICE_LABEL[di];
+      row.appendChild(lab);
+      var fb = document.createElement('div');
+      fb.className = 'facebar';
+      faces.forEach(function(f, i){
+        var fixed = i < prepChar.fixed.length;
+        var slot = i - prepChar.fixed.length;
+        var chip = fixed ? null : save.dice[id][di][slot];
+        var d = document.createElement('div');
+        d.className = 'fs' + (fixed ? ' lock' : '') + (chip ? ' chip' : '');
+        d.innerHTML = '<span class="v'+(f.length>1?' two':'')+'">'+E.faceEmoji(f)+'</span>'+
+                      (fixed ? '<i>🔒</i>' : '');
+        if (!fixed) d.onclick = function(){ openSheet(di, slot); };
+        fb.appendChild(d);
+      });
+      row.appendChild(fb);
+      bar.appendChild(row);
     });
 
     var inv = $('prep-inv');
@@ -488,17 +527,17 @@
   }
 
   // チップ選択シート
-  function openSheet(slot){
-    sheetSlot = slot;
-    var id = prepChar.id, cur = save.dice[id][slot];
-    $('sheet-ttl').textContent = 'この面にはめるチップ（いまは ' +
+  function openSheet(die, slot){
+    sheetDie = die; sheetSlot = slot;
+    var id = prepChar.id, cur = save.dice[id][die][slot];
+    $('sheet-ttl').textContent = E.DICE_LABEL[die] + 'の面にはめるチップ（いまは ' +
       E.faceEmoji(cur ? E.CHIPS[cur].face : [prepChar.slots[slot]]) + '）';
     var box = $('sheet-chips');
     box.innerHTML = '';
     E.CHIP_ORDER.forEach(function(k){
       var n = save.chips[k], on = (cur === k);
-      // 上限（✨1面・2エネ2面）に触れる置き換えはグレーにして選ばせない。理由を短く出す
-      var chk = on ? { ok: true } : E.canPlaceChip(prepChar, save.dice[id], slot, k);
+      // 上限（1個につき ✨1面・同エネ2面）に触れる置き換えはグレーにして選ばせない。理由を短く出す
+      var chk = on ? { ok: true } : E.canPlaceChip(prepChar, save.dice[id], die, slot, k);
       var disabled = (!n && !on) || !chk.ok;
       var d = document.createElement('div');
       d.className = 'chip' + (disabled ? ' z' : '') + (on ? ' on' : '');
@@ -510,17 +549,17 @@
     $('sheet-off').disabled = !cur;
     $('sheet').classList.add('on');
   }
-  function closeSheet(){ $('sheet').classList.remove('on'); sheetSlot = -1; }
+  function closeSheet(){ $('sheet').classList.remove('on'); sheetDie = -1; sheetSlot = -1; }
   function setChip(k){
-    var id = prepChar.id, cur = save.dice[id][sheetSlot];
-    if (cur) save.chips[cur]++;      // 付け替え: 外したぶんは在庫に戻る
+    var id = prepChar.id, cur = save.dice[id][sheetDie][sheetSlot];
+    if (cur) save.chips[cur]++;      // 付け替え: 外したぶんは在庫に戻る（在庫は3個で共通）
     save.chips[k]--;
-    save.dice[id][sheetSlot] = k;
+    save.dice[id][sheetDie][sheetSlot] = k;
     closeSheet(); drawPrep();
   }
   $('sheet-off').onclick = function(){
-    var id = prepChar.id, cur = save.dice[id][sheetSlot];
-    if (cur) { save.chips[cur]++; save.dice[id][sheetSlot] = null; }
+    var id = prepChar.id, cur = save.dice[id][sheetDie][sheetSlot];
+    if (cur) { save.chips[cur]++; save.dice[id][sheetDie][sheetSlot] = null; }
     closeSheet(); drawPrep();
   };
   $('sheet-close').onclick = closeSheet;
@@ -555,8 +594,6 @@
       buildDice(s, st.chars[s]);   // 面構成から作り直す
       setEnergyActive(s, 3);
     });
-    $('faces-me').textContent = '🎲 ' + facesLine(myF) + '　' + dieFaces(myF);
-    $('faces-foe').textContent = '🎲 ' + facesLine(foeF) + '　' + dieFaces(foeF);
     dimStage(st.turn);
     drawFighters(); drawMoves(); drawLog();
     show('s-battle');
@@ -639,21 +676,37 @@
   function charFaceHtml(k){
     return '<span class="kj">' + oKan(k) + '</span>';
   }
-  // 面構成（チップ差し替え込み）から立方体を作る
+  // 6面を小さく2段（3面ずつ）で。ダイスの真下に出すので幅に収める
+  function faceLines(faces){
+    var e = faces.map(E.faceEmoji);
+    return e.slice(0,3).join('') + '<br>' + e.slice(3).join('');
+  }
+  // 面構成（チップ差し替え込み）から立方体を作る。エネコロは3個それぞれ面が違う
   function buildDice(side, c){
     makeCube(dchar(side), c.die.map(charFaceHtml), 0);
+    $(side === ME ? 'fl-me-c' : 'fl-foe-c').textContent = c.die.map(oKan).join('');
     var box = dbox(side);
     box.innerHTML = '';
+    var arr = [];
     for (var i = 0; i < 3; i++){
+      var col = document.createElement('div');
+      col.className = 'dcol';
       var d = document.createElement('div');
       d.className = 'die en';
-      box.appendChild(d);
-      makeCube(d, c.energy.map(enFaceHtml), i);
+      var fl = document.createElement('div');
+      fl.className = 'fl';
+      fl.innerHTML = faceLines(c.energy[i]);
+      col.appendChild(d); col.appendChild(fl);
+      box.appendChild(col);
+      makeCube(d, c.energy[i].map(enFaceHtml), i);
+      arr.push(d);
     }
+    box._dice = arr;   // 転がすときに使う（children は .dcol なので）
   }
+  function enDice(side){ return dbox(side)._dice || []; }
   function setEnergyActive(side, n){
-    Array.prototype.forEach.call(dbox(side).children, function(d, i){
-      d.classList.toggle('off', i >= n);
+    enDice(side).forEach(function(d, i){
+      d.parentNode.classList.toggle('off', i >= n);
     });
   }
   // 出目に合う面を選ぶ（同じ面が複数あるならランダム）
@@ -665,9 +718,9 @@
     for (i = 0; i < c.die.length; i++) if (c.die[i] === orient) h.push(i);
     return pickIdx(h);
   }
-  function enFaceIdx(c, face){
-    var h = [], i, sig = face.join('+');
-    for (i = 0; i < c.energy.length; i++) if (c.energy[i].join('+') === sig) h.push(i);
+  function enFaceIdx(c, di, face){
+    var h = [], i, faces = c.energy[di], sig = face.join('+');
+    for (i = 0; i < faces.length; i++) if (faces[i].join('+') === sig) h.push(i);
     return pickIdx(h);
   }
 
@@ -704,8 +757,8 @@
     var rm = reduced(), dur = 520, step = 90;
 
     rollCube(dchar(side), charFaceIdx(c, r.orient), 0, dur, 1);
-    Array.prototype.forEach.call(dbox(side).children, function(d, i){
-      if (i < r.n) rollCube(d, enFaceIdx(c, r.faces[i]), step * i, dur, 0);
+    enDice(side).forEach(function(d, i){
+      if (i < r.n) rollCube(d, enFaceIdx(c, i, r.faces[i]), step * i, dur, 0);
     });
 
     setTimeout(function(){

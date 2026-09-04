@@ -78,11 +78,11 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
 <div class="wrap">
   <div class="eyebrow">KAMOSHI-KORO ZUKAN v2 · きょうかい酵母</div>
   <h1>醸しコロ図鑑</h1>
-  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、出た面（静・湧・沸・躍・極）が技の当たり目に入っていれば「当たり目効果」が乗る。当たり目は該当する漢字を静→湧→沸→躍→極の順に並べて示す（例「沸躍極」）。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。</p>
+  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、出た面（静・湧・沸・躍・極）が技の当たり目に入っていれば「当たり目効果」が乗る。当たり目は該当する漢字を静→湧→沸→躍→極の順に並べて示す（例「沸躍極」）。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。エネコロは左・中・右の3個で、下の面構成は<b>3個ともこの初期構成</b>（本編の準備画面で1個ずつ別々にチップを付け替えられます）。</p>
 
   <div class="flow">
     <div><b>1 狙う</b><p>技を1つ選ぶ。前の手番に使った技は選べない</p></div>
-    <div><b>2 振る</b><p>キャラコロ1個＋エネコロ3個を同時に</p></div>
+    <div><b>2 振る</b><p>キャラコロ1個＋エネコロ3個（左・中・右）を同時に</p></div>
     <div><b>3 揃う</b><p>エネがコスト通りなら成功。出た面が当たり目なら追加効果</p></div>
     <div><b>4 交代</b><p>失敗は「しずく」5ダメージ。先攻の1手目だけエネコロ2個</p></div>
   </div>
@@ -145,7 +145,7 @@ C.forEach(function(c,i){
    '<div class="head"><div class="emo">'+c.emo+'</div><div><div class="no">No.'+c.no+'</div><h2 class="name">'+c.name+'</h2></div><span class="type '+c.tc+'">'+c.type+'タイプ</span></div>'+
    '<div class="hp">HP '+c.hp+'<i><b style="width:'+(c.hp/120*100)+'%"></b></i></div>'+
    '<p class="desc">'+c.desc+'</p><p class="src">出典: '+c.src+'</p>'+(c.kin?'<p class="kin">血縁: '+c.kin+'</p>':'')+(c.trait?'<p class="trait">'+c.trait+'</p>':'')+
-   '<div class="dice"><span>エネコロ</span><div class="faces" data-e>'+eneFaces(c.ene).map(function(f){return '<span class="face">'+f+'</span>';}).join('')+'</div>'+
+   '<div class="dice"><span>エネコロ<br><small style="font-size:9px;opacity:.7">左・中・右3個とも同じ</small></span><div class="faces" data-e>'+eneFaces(c.ene).map(function(f){return '<span class="face">'+f+'</span>';}).join('')+'</div>'+
    '<span>キャラコロ</span><div><div class="faces" data-o>'+ori.map(function(o){return '<span class="face">'+ORI[o]+'</span>';}).join('')+'</div><div style="font-size:11px;margin-top:3px">'+c.bias+'</div></div></div>'+
    '<table><thead><tr><th>技</th><th>コスト</th><th style="text-align:right">威力</th><th>当たり目 → 効果</th></tr></thead><tbody>'+
    c.mv.map(function(m){return '<tr><td class="mv">'+m[0]+'</td><td class="cost">'+m[1]+'</td><td class="pw">'+m[2]+'</td><td>'+hitLabel(m[3])+' → '+m[4]+'</td></tr>';}).join('')+
