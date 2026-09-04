@@ -118,8 +118,11 @@
   .die.big .f{border-color:var(--accent)}
   .die.en .f{border-width:2px}
   .f .two{font-size:.62em;letter-spacing:-1px}
-  .f .om{position:absolute;right:4px;bottom:2px;font-size:11px;font-style:normal;
-    line-height:1;color:var(--sub)}
+  /* キャラコロの面＝サイコロの目。3x3のマスに丸を置く（⚀の絵文字は端末差が大きいので使わない） */
+  .f .pips{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    width:64%;height:64%}
+  .f .pips i{align-self:center;justify-self:center;width:.26em;height:.26em;
+    border-radius:50%;background:var(--fg)}
   .f0{transform:translateZ(var(--h))}
   .f1{transform:rotateY(180deg) translateZ(var(--h))}
   .f2{transform:rotateY(90deg) translateZ(var(--h))}
@@ -133,7 +136,6 @@
   .stage.foe .die.big{width:60px;height:60px;font-size:32px;--h:30px;--r:7px}
   .stage.foe .die.en{width:37px;height:37px;font-size:19px;--h:18.5px;--r:6px}
   .stage.foe .die .f{border-width:2px}
-  .stage.foe .die.big .f .om{font-size:9px;right:3px;bottom:1px}
   /* 手番でない側は薄く残す（直前の出目は消さない） */
   .stage.dim .die{opacity:.4}
   .stage.dim .die.off{opacity:.12}
@@ -352,10 +354,10 @@
     ['s-select','s-prep','s-battle','s-end'].forEach(function(s){ $(s).classList.toggle('on', s===id); });
     window.scrollTo(0,0);
   }
-  function em(k){ return E.ORIENT[k].emoji; }
+  function oNum(k){ return E.ORIENT[k].mark; }        // ①②③④⑥（1文字で読める）
   function en(k){ return E.ENERGY[k].emoji; }
   function facesLine(f){ return f.energy.map(E.faceEmoji).join(' '); }
-  function dieFaces(c){ return c.die.map(em).join(''); }
+  function dieFaces(c){ return c.die.map(oNum).join(''); }
   function dots(wins){
     var s = '';
     for (var i = 0; i < LAP; i++) s += (i < wins ? '●' : '○');
@@ -411,7 +413,7 @@
     return String(mv.power);
   }
   function orientLabel(mv){
-    var e = mv.eff || {}, s = em(mv.orient);
+    var e = mv.eff || {}, s = oNum(mv.orient);
     if (e.plus) return s + '+' + e.plus;
     if (e.healPlus) return s + '回復+' + e.healPlus;
     if (e.heal) return s + '回復' + e.heal;
@@ -585,15 +587,7 @@
   // ---------------- 立方体ダイス ----------------
   // 面0=正面 1=裏 2=右 3=左 4=上 5=下。その面を正面に向ける回転 [x,y]
   var CUBE_REST = [[0,0],[0,180],[0,-90],[0,90],[-90,0],[90,0]];
-  // 向きごとの止まり方（面を正面に向けたあと、画面の軸で傾ける）
-  var TILT = {
-    s: { x:0,   z:0   },   // 🧍立ち＝そのまま
-    y: { x:0,   z:90  },   // ↔️横向き＝Z軸で90度倒れる
-    g: { x:0,   z:180 },   // 🤸逆立ち＝180度
-    a: { x:25,  z:0   },   // 😴あおむけ＝X軸で奥に傾く
-    u: { x:-25, z:0   }    // 🙃うつぶせ＝手前に傾く
-    // 傾きは25度。深くすると隣の面が出た面と同じ大きさで見えて、ダイスが2個に見える
-  };
+  // 2026-09-04: 向きによる傾きは撤去。出た面はいつも正面・水平で止まる（傾けると目が読めない）
   function reduced(){
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
@@ -621,10 +615,10 @@
   function spinTo(cur, base, turns){
     return base + Math.ceil((cur - base) / 360) * 360 + 360 * turns;
   }
-  // faceIdx の面を正面にして止める。tilt=向きの傾き、zt=Z軸の回転数
-  function rollCube(el, faceIdx, tilt, delay, dur, zt){
-    var rest = CUBE_REST[faceIdx] || CUBE_REST[0], t = tilt || TILT.s, cube = el._cube;
-    var x = rest[0] + t.x, y = rest[1], z = t.z;
+  // faceIdx の面を正面・水平にして止める。zt=Z軸の回転数（タンブル演出）
+  function rollCube(el, faceIdx, delay, dur, zt){
+    var rest = CUBE_REST[faceIdx] || CUBE_REST[0], cube = el._cube;
+    var x = rest[0], y = rest[1], z = 0;
     el.classList.remove('bnc');
     if (reduced()){                       // 回転を省いて即座に出目
       cube.style.transitionDelay = '0ms';
@@ -645,12 +639,16 @@
   function enFaceHtml(f){
     return '<span class="' + (f.length > 1 ? 'two' : '') + '">' + E.faceEmoji(f) + '</span>';
   }
-  function charFaceHtml(c, k){
-    return '<span>' + c.emoji + '</span><i class="om">' + em(k) + '</i>';
+  // 3x3のマス番号（左上=1 … 右下=9）に丸を置く。5の目は無い
+  var PIPS = { 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 6:[1,3,4,6,7,9] };
+  function charFaceHtml(k){
+    var on = PIPS[E.ORIENT[k].pips], h = '';
+    for (var i = 1; i <= 9; i++) h += (on.indexOf(i) >= 0 ? '<i></i>' : '<b></b>');
+    return '<span class="pips">' + h + '</span>';
   }
   // 面構成（チップ差し替え込み）から立方体を作る
   function buildDice(side, c){
-    makeCube(dchar(side), c.die.map(function(k){ return charFaceHtml(c, k); }), 0);
+    makeCube(dchar(side), c.die.map(charFaceHtml), 0);
     var box = dbox(side);
     box.innerHTML = '';
     for (var i = 0; i < 3; i++){
@@ -712,9 +710,9 @@
     var r = E.resolveTurn(st, moveIdx);
     var rm = reduced(), dur = 520, step = 90;
 
-    rollCube(dchar(side), charFaceIdx(c, r.orient), TILT[r.orient], 0, dur, 1);
+    rollCube(dchar(side), charFaceIdx(c, r.orient), 0, dur, 1);
     Array.prototype.forEach.call(dbox(side).children, function(d, i){
-      if (i < r.n) rollCube(d, enFaceIdx(c, r.faces[i]), null, step * i, dur, 0);
+      if (i < r.n) rollCube(d, enFaceIdx(c, r.faces[i]), step * i, dur, 0);
     });
 
     setTimeout(function(){
@@ -740,7 +738,7 @@
     else s = mv.name + '！ ' + r.damage + 'ダメージ';
     if (r.halved) s += '（半減）';
     if (r.orientHit) {
-      s += '　' + em(r.orient) + 'ぴったり！';
+      s += '　' + oNum(r.orient) + 'ぴったり！';
       if (r.minus) s += ' 相手エネコロ-1';
       if (r.selfDamage) s += ' 自分に' + r.selfDamage;
       if (mv.kind === 'atk' && r.guard) s += ' つぎ半減';
