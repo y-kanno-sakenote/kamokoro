@@ -202,8 +202,9 @@ function runV3() {
       console.log('| ' + c.emoji + c.name + ' | ' + movesLabel(c, best.mi) + ' / ' + chipsLabel(c, best.ch) +
         ' | ' + pc(best.w) + ' | ' + pc(b0) + ' | +' + ((best.w - b0) * 100).toFixed(1) + 'pt |');
     });
-    console.log('- **最良構成の勝率（全キャラ最大）: ' + pc(worst) + '**（' + worstLabel + '）／目標は80%以下 → ' +
-      (worst <= 0.80 ? 'OK' : 'NG（spec_v3.md §7の抑え方を検討）'));
+    // 目標は 2026-09-03 の裁定で 80% → 85% に緩和（spec_v3.md 末尾「裁定」）
+    console.log('- **最良構成の勝率（全キャラ最大）: ' + pc(worst) + '**（' + worstLabel + '）／目標は85%以下 → ' +
+      (worst <= 0.85 ? 'OK' : 'NG（spec_v3.md 末尾の裁定を確認）'));
     return worst;
   }
   pinch('## 4. 上限内の最強構成 vs 初期構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）');
@@ -217,14 +218,15 @@ function runV3() {
     tbl.forEach(function (k) { exp[k] += 1 / 6; });
   });
   var rareTotal = 2; // 3勝目・6勝目
-  E.RARE.forEach(function (k) { exp[k] += rareTotal / 6; });
+  // 2エネ廃止（2026-09-03）でレア枠は6面の抽選ではなく✨固定になった。RARE の枚数で均等割る
+  E.RARE.forEach(function (k) { exp[k] += rareTotal / E.RARE.length; });
   console.log('| チップ | 1周でもらえる期待枚数 |');
   console.log('|---|---|');
   E.CHIP_ORDER.forEach(function (k) {
     console.log('| ' + E.CHIPS[k].emoji + ' | ' + exp[k].toFixed(2) + ' |');
   });
-  console.log('- 1周で 通常6枚＋レア' + rareTotal + '枚。カスタム4面をレアで埋めるのに最短 ' +
-    Math.ceil(4 / rareTotal) + '周');
+  console.log('- 1周で 通常6枚＋レア' + rareTotal + '枚。ただし✨は1ダイス1面まで（初期構成の✨1面で埋まっている）ので、' +
+    'カスタム4面をレアで埋めることはできない（spec_v3.md §2.1）');
 }
 
 if (V3) runV3(); else runV2();

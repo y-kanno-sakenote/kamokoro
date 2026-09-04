@@ -281,7 +281,7 @@
     var i, ok = true;
     for (i = 0; i < E.CHIP_ORDER.length; i++){
       var n = s.chips[E.CHIP_ORDER[i]];
-      if (typeof n !== 'number' || !isFinite(n) || n < 0) return false;
+      if (typeof n !== 'number' || !isFinite(n) || n < 0 || n % 1 !== 0) return false;
     }
     E.CHARS.forEach(function(c){
       var d = s.dice[c.id], m = s.moves[c.id];
@@ -290,7 +290,8 @@
       if (!Array.isArray(m) || m.length !== 4) { ok = false; return; }
       var seen = {};
       for (var k = 0; k < 4; k++){
-        if (!(m[k] >= 0 && m[k] < c.moves.length) || seen[m[k]]) { ok = false; return; }
+        // 整数以外（5.5 等）は base.moves[i] が undefined になりバトルで落ちるので弾く
+        if (typeof m[k] !== 'number' || m[k] % 1 !== 0 || m[k] < 0 || m[k] >= c.moves.length || seen[m[k]]) { ok = false; return; }
         seen[m[k]] = 1;
       }
     });
