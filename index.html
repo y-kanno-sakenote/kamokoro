@@ -456,6 +456,12 @@
 
   // ---------------- 2. 準備 ----------------
   function goPrep(){
+    // 1周クリア直後にリロードすると run.rest が空のまま残る（「もう1周」を押さずに次の周へ進めなかった状態）。
+    // 壊れたセーブとして初期化すると在庫・配置が消えるので、ここで「もう1周」と同じ補充だけ行う。
+    if (save.run && save.run.rest.length === 0){
+      save.run = { charId: save.run.charId, rest: shuffled(), wins: 0, lap: (save.run.lap || 1) + 1 };
+      writeSave();
+    }
     prepChar = E.getChar(save.run.charId);
     drawPrep();
     show('s-prep');
