@@ -1,7 +1,7 @@
 // 醸しコロ 実測（v6: 属性制・固定3面（属性2＋✨1）＋カスタム3面・属性3すくみ）
 //  回帰（既定）: 21組×先攻後攻＝42通りを既定2000戦。既定構成（★4技・素の面）＋6体の総合勝率
 //               → 既定の6面は v5 と同じ多重集合・同じ並びなので、**v5の回帰と1戦単位で一致する**
-//  --v3        : 技セット総当たり・ダイス総当たり・上限内最強 vs 既定・ドロップ期待値・手持ち12枚の最良
+//  --v3        : 技セット総当たり・ダイス総当たり・上限内最強 vs 既定・ドロップ期待値・手持ちチップの最良
 //  --noadv     : 属性3すくみを切って測る（engine の切り替えフラグ。既定はON）
 // 使い方: node sim/sim.js [回数] [--v3] [--noadv]
 'use strict';
@@ -10,7 +10,7 @@ var E = require(path.join(__dirname, '..', 'engine.js'));
 
 var N = parseInt(process.argv[2], 10) || 2000;
 var V3 = process.argv.indexOf('--v3') >= 0;
-// --bring : 「初期チップ6枚の最良 vs 初期」だけを測り直す軽い経路
+// --bring : 「手持ちチップの最良 vs 既定」だけを測り直す軽い経路
 var BRING_ONLY = process.argv.indexOf('--bring') >= 0 && !V3;
 // --noadv : 属性3すくみOFF（有利ボーナスを無効に）。ON/OFF 両方を測るための切り替え
 var NOADV = process.argv.indexOf('--noadv') >= 0;
@@ -185,10 +185,10 @@ function rankDieCands(char, cands, NS, rng, K) {
   return res.slice(0, K).map(function (r) { return r.ch; });
 }
 
-// ---- 初期チップ6枚（自分の属性×2＋他4種×1枚）の探索 -----------------------
+// ---- 手持ちチップ（engine.js の START_CHIPS）の探索 -------------------------
 // 勝率は「3個それぞれの面の集合」だけで決まるので、置き方（どのスロットに置くか）ではなく
-// **面の集合**で畳み、在庫（6枚）で組めるかは「使用ベクトルの組み合わせが1つでもあるか」で判定する。
-// 1個ぶんの面の集合は26通り、在庫内で組める3個の並びは 5,470通り（全列挙できる）。
+// **面の集合**で畳み、在庫で組めるかは「使用ベクトルの組み合わせが1つでもあるか」で判定する。
+// 枚数・内訳はキャラごとに違う（engine.js が正）。ここに枚数をハードコードしない。
 function invVec(char) {
   var inv = E.startChips(char);
   return E.CHIP_ORDER.map(function (k) { return inv[k]; });
@@ -220,7 +220,7 @@ function bringDieGroups(char) {
   });
   return order.map(function (k) { return map[k]; });
 }
-// 3個ぶん（左・中・右）のうち、在庫6枚で実際に組めるものを全列挙
+// 3個ぶん（左・中・右）のうち、手持ちの在庫で実際に組めるものを全列挙
 function bringDiceSets(char) {
   var G = bringDieGroups(char), inv = invVec(char), out = [], i, j, k;
   function fits(A, B, C) {
@@ -302,26 +302,30 @@ function searchMoves(MS, NS, TOP, rng, quiet) {
   return topMoves;
 }
 
-// 手持ちチップ12枚（属性3＋他3種で9）の最良構成 vs 既定構成
-var BRING_LABEL = '属性3＋他3種で9（計12枚）';
+// 手持ちチップ（配布のまま）の最良構成 vs 既定構成。枚数はキャラごとに engine.js から読む
+function invLabel(char) {
+  var g = E.startChips(char), tot = 0;
+  var s = E.CHIP_ORDER.map(function (k) { tot += g[k]; return E.CHIPS[k].emoji + g[k]; }).join('');
+  return s + '=' + tot + '枚';
+}
 function bringSection(base, topMoves, N, NS, TOP, rng) {
-  console.log('\n## 手持ちチップ（' + BRING_LABEL + '）から9枠を選んだ最良構成 vs 既定構成（各 ' + N + ' 戦・探索 ' + NS + ' 戦）');
+  console.log('\n## 手持ちチップ（初期配布のまま）から9枠を選んだ最良構成 vs 既定構成（各 ' + N + ' 戦・探索 ' + NS + ' 戦）');
   console.log('カスタム3面×3個＝9スロットへの置き方を、面の集合に畳んで**在庫で組める並びを全列挙**する');
-  console.log('\n| キャラ | 1個ぶんの面の集合 | 在庫内で組める3個の並び |');
-  console.log('|---|---|---|');
+  console.log('\n| キャラ | 初期配布 | 1個ぶんの面の集合 | 在庫内で組める3個の並び |');
+  console.log('|---|---|---|---|');
   var topDice = {};
   CH.forEach(function (c) {
     var B = bringDiceSets(c);
     var res = B.sets.map(function (ch) { return { ch: ch, w: runVsAll(c.id, { chips: ch }, NS, rng) }; });
     res.sort(function (x, y) { return y.w - x.w; });
     topDice[c.id] = res.slice(0, TOP);
-    console.log('| ' + c.emoji + c.name + ' | ' + B.cands + ' | ' + B.sets.length + ' |');
+    console.log('| ' + c.emoji + c.name + ' | ' + invLabel(c) + ' | ' + B.cands + ' | ' + B.sets.length + ' |');
   });
-  var w = pinch('### 手持ち12枚＋技セットも自由（上位' + TOP + 'ダイス × 上位' + TOP + '技セット）',
+  var w = pinch('### 手持ちチップ＋技セットも自由（上位' + TOP + 'ダイス × 上位' + TOP + '技セット）',
     base, topDice, topMoves, N, rng, GOAL);
   var star = {};
   CH.forEach(function (c) { star[c.id] = [{ mi: c.star.slice(), w: 0 }]; });
-  pinch('### 参考: 技は★4技のまま・手持ち12枚だけ', base, topDice, star, N, rng, GOAL);
+  pinch('### 参考: 技は★4技のまま・手持ちチップだけ', base, topDice, star, N, rng, GOAL);
   return w;
 }
 
@@ -382,7 +386,7 @@ function runV3() {
 function runBringOnly() {
   var rng = makeRng(20260903);
   var NS = Math.max(60, Math.floor(N / 10)), TOP = 10;
-  console.log('# 醸しコロ 初期チップ（' + BRING_LABEL + '）の実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・' + ADVTAG + '）');
+  console.log('# 醸しコロ 初期配布チップの実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・' + ADVTAG + '）');
   var base = baseWins(N, rng, true);
   var topMoves = searchMoves(moveSets(), NS, TOP, rng, true);
   bringSection(base, topMoves, N, NS, TOP, rng);

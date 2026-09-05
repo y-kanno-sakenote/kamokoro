@@ -60,20 +60,25 @@
     heat:   { face: ['heat'],  emoji: '🔥' }
   };
 
-  // 開始時のチップ（v6 / 2026-09-05 ユーザー裁定）
-  // **選ばせない**。新しいセーブで最初にキャラを選んだときに **12枚**を自動で在庫に入れるだけ。
-  // 内訳は **属性3枚（＝3個のダイスに1枚ずつ載る上限ぴったり）＋ 他3種で9枚**。
-  // 他3種の9枚は 4・3・2 に割り、**技プール7つでの需要が多い順**に多く配る（キャラごとに偏る）。
-  // 置ける枠は 3面×3個＝9 なので、12枚は必ず余る＝「何を諦めるか」が準備画面の判断になる。
+  // 開始時のチップ（v6 / 2026-09-05 実測で確定。sim/out/chips_v6.md）
+  // **選ばせない**。新しいセーブで最初にキャラを選んだときに自動で在庫に入れるだけ。
+  // 内訳は **4種を2枚ずつ＝8枚**。強い型は「同じ面の3個そろえ」で、1種につき3枚要る。
+  // **どの種類も2枚まで**にすると 2個までしか揃わず、3個目の1枚は周回のドロップで拾うことになる。
+  // 例外は6号だけ。🌾2🍚2 だと🌾🍚型が3個そろって手持ち最良が 80.1% に届くので **🍚は1枚**（7枚）。
+  // 置ける枠は 3面×3個＝9 なので配布は必ず枠より少ない＝空いた枠は素の面のまま成立する。
   var START_CHIPS = {
-    k6:    { rice: 3, koji: 4, water: 3, heat: 2 },   // 🌾米。需要 🍚4>💧2=🔥2
-    k7:    { koji: 3, water: 4, rice: 3, heat: 2 },   // 🍚麹。需要 💧3>🌾2=🔥2
-    k9:    { water: 3, heat: 4, koji: 3, rice: 2 },   // 💧水。需要 🔥4>🍚2>🌾1
-    k10:   { rice: 3, heat: 4, koji: 3, water: 2 },   // 🌾米。需要 🔥4>🍚2=💧2
-    k14:   { water: 3, heat: 4, koji: 3, rice: 2 },   // 💧水。需要 🔥4>🍚2>🌾1
-    k1801: { koji: 3, heat: 4, water: 3, rice: 2 }    // 🍚麹。需要 🔥4>💧3>🌾1
+    k6:    { rice: 2, koji: 1, water: 2, heat: 2 },   // 🌾米。🍚だけ1枚（🌾🍚型を3個そろえさせない）
+    k7:    { rice: 2, koji: 2, water: 2, heat: 2 },   // 🍚麹
+    k9:    { rice: 2, koji: 2, water: 2, heat: 2 },   // 💧水
+    k10:   { rice: 2, koji: 2, water: 2, heat: 2 },   // 🌾米
+    k14:   { rice: 2, koji: 2, water: 2, heat: 2 },   // 💧水
+    k1801: { rice: 2, koji: 2, water: 2, heat: 2 }    // 🍚麹
   };
-  var START_CHIPS_TOTAL = 12;
+  function startChipsTotal(charOrId) {
+    var g = startChips(charOrId), n = 0, i;
+    for (i = 0; i < CHIP_ORDER.length; i++) n += g[CHIP_ORDER[i]];
+    return n;
+  }
   function startChips(charOrId) {
     var id = typeof charOrId === 'string' ? charOrId : (charOrId && charOrId.id);
     var src = START_CHIPS[id] || {};
@@ -649,7 +654,7 @@
     attrLabel: attrLabel, hasAdv: hasAdv, setTypeAdv: setTypeAdv, typeAdvOn: typeAdvOn,
     isAttrMove: isAttrMove,
     CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP,
-    START_CHIPS: START_CHIPS, START_CHIPS_TOTAL: START_CHIPS_TOTAL, startChips: startChips,
+    START_CHIPS: START_CHIPS, startChipsTotal: startChipsTotal, startChips: startChips,
     LIMIT_ATTR: LIMIT_ATTR, LIMIT_OTHER: LIMIT_OTHER, LIMIT_WILD: LIMIT_WILD,
     limitFor: limitFor, limitMsg: limitMsg,
     FIXED_MSG: FIXED_MSG, SAME_FACE_MSG: SAME_FACE_MSG,
