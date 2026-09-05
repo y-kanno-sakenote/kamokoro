@@ -634,7 +634,7 @@
       res(s).textContent = '';
       lb(s).textContent = '';
       buildDice(s, st.chars[s]);   // 面構成から作り直す
-      setEnergyActive(s, 3);
+      setEnergyActive(s, [0, 1, 2]);
     });
     dimStage(st.turn);
     drawFighters(); drawMoves(); drawLog();
@@ -747,9 +747,10 @@
     box._dice = arr;   // 転がすときに使う（children は .dcol なので）
   }
   function enDice(side){ return dbox(side)._dice || []; }
-  function setEnergyActive(side, n){
+  // idx = その手番で振るダイスの添字（engine が決める）。入っていないものをグレーにする
+  function setEnergyActive(side, idx){
     enDice(side).forEach(function(d, i){
-      d.parentNode.classList.toggle('off', i >= n);
+      d.parentNode.classList.toggle('off', idx.indexOf(i) < 0);
     });
   }
   // 出目に合う面を選ぶ（同じ面が複数あるならランダム）
@@ -795,19 +796,21 @@
 
   function playTurn(side, moveIdx, done){
     var c = st.chars[side], mv = c.moves[moveIdx];
-    var n = E.energyCount(st, side);
     lb(side).textContent = (side === ME ? '自分の' : '相手の') + '「' + mv.name + '」をねらう';
     res(side).textContent = '';
     dimStage(side);
-    setEnergyActive(side, n);
 
     // 出目は先に engine が決め、その面が正面で止まるように転がす
+    // 振れないダイス（先攻1手目の右／-1効果でランダムに1個）も engine が決めるので、
+    // グレーアウトは r.idx をそのまま使う
     var r = E.resolveTurn(st, moveIdx);
+    setEnergyActive(side, r.idx);
     var rm = reduced(), dur = 520, step = 90;
 
     rollCube(dchar(side), charFaceIdx(c, r.orient), 0, dur, 1);
     enDice(side).forEach(function(d, i){
-      if (i < r.n) rollCube(d, enFaceIdx(c, i, r.faces[i]), step * i, dur, 0);
+      var j = r.idx.indexOf(i);
+      if (j >= 0) rollCube(d, enFaceIdx(c, i, r.faces[j]), step * j, dur, 0);
     });
 
     setTimeout(function(){

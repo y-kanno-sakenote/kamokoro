@@ -406,10 +406,17 @@
   function pick(arr, rng) { return arr[Math.floor(rnd(rng) * arr.length)]; }
 
   function rollChar(char, rng) { return pick(char.die, rng); }
-  // エネコロを左から n 個振る → 面（エネキー配列）の配列
+  // 添字の指定（数値なら左から n 個・配列ならその添字）を 0..2 の添字配列に直す
+  function toIdx(n) {
+    if (typeof n !== 'number') return n;
+    var a = [], i;
+    for (i = 0; i < n; i++) a.push(i);
+    return a;
+  }
+  // エネコロを振る → 面（エネキー配列）の配列。**添字配列と同じ並び**で返る
   function rollEnergy(char, n, rng) {
-    var out = [];
-    for (var i = 0; i < n; i++) out.push(pick(char.energy[i], rng));
+    var idx = toIdx(n), out = [], i;
+    for (i = 0; i < idx.length; i++) out.push(pick(char.energy[idx[i]], rng));
     return out;
   }
 
@@ -436,15 +443,17 @@
   function probCacheFor(pkey) {
     return _probCache[pkey] || (_probCache[pkey] = {});
   }
+  // n は個数（左から n 個）でも添字配列でもよい
   function successProb(char, move, n) {
+    var idx = toIdx(n), k = idx.length;
     var cache = char.pcache || probCacheFor(char.pkey || char.id);
-    var key = move.name + '|' + n;
+    var key = move.name + '|' + idx.join('');
     if (cache[key] != null) return cache[key];
-    var dice = char.energy, total = Math.pow(6, n), ok = 0;
-    var roll = new Array(n), i;
+    var dice = char.energy, total = Math.pow(6, k), ok = 0;
+    var roll = new Array(k), i;
     for (var c = 0; c < total; c++) {
       var t = c;
-      for (i = 0; i < n; i++) { roll[i] = dice[i][t % 6]; t = Math.floor(t / 6); }
+      for (i = 0; i < k; i++) { roll[i] = dice[idx[i]][t % 6]; t = Math.floor(t / 6); }
       if (matchCost(move.cost, roll)) ok++;
     }
     var p = ok / total;
@@ -497,6 +506,7 @@
       maxHp: [a.hp, b.hp],
       lastMove: [-1, -1],
       energyMinus: [false, false],
+      energySkip: [-1, -1],   // その手番で振れなくなったダイスの添字（-1＝なし。UIのグレーアウト用）
       halveNext: [false, false],
       turnCount: [0, 0],
       first: first,
@@ -507,11 +517,41 @@
     };
   }
 
+  // その手番の「素の」添字（先攻1手目だけ左・中＝[0,1]。これは効果ではなく開始時の構造ルールなので固定）
+  function baseIndices(state, side) {
+    return (side === state.first && state.turnCount[side] === 0) ? [0, 1] : [0, 1, 2];
+  }
+
   // その手番で振るエネコロの個数（先攻1手目は2個・-1効果で1減・下限1）
   function energyCount(state, side) {
-    var n = (side === state.first && state.turnCount[side] === 0) ? 2 : 3;
+    var n = baseIndices(state, side).length;
     if (state.energyMinus[side]) n -= 1;
     return Math.max(1, n);
+  }
+
+  // その手番で実際に振るエネコロの添字。-1効果のときは**どれが消えるかランダム**（2026-09-06 裁定）
+  // 消えるのは1個だけ・下限1個。rng を消費するのは -1 が乗っている手番だけ
+  function energyIndices(state, side, rng) {
+    var idx = baseIndices(state, side);
+    var skip = -1;
+    if (state.energyMinus[side] && idx.length > 1) {
+      var k = Math.floor(rnd(rng) * idx.length);
+      skip = idx[k];
+      idx = idx.slice(0, k).concat(idx.slice(k + 1));
+    }
+    return { idx: idx, skip: skip };
+  }
+
+  // 技の成功率。-1が乗っているときは**どれが消えるかは等確率**として平均を取る
+  // （選ぶ時点では消える1個がまだ決まっていないので、CPUも人も同じ情報で選ぶ）
+  function turnProb(state, side, move) {
+    var me = state.chars[side], base = baseIndices(state, side);
+    if (!state.energyMinus[side] || base.length <= 1) return successProb(me, move, base);
+    var s = 0, k;
+    for (k = 0; k < base.length; k++) {
+      s += successProb(me, move, base.slice(0, k).concat(base.slice(k + 1)));
+    }
+    return s / base.length;
   }
 
   function availableMoves(state, side) {
@@ -525,14 +565,13 @@
   // ---- CPU（期待ダメージ最大・前手番の技除外・HP30%以下で回復） -----------
   function cpuChoose(state, side) {
     var me = state.chars[side], foe = 1 - side;
-    var n = energyCount(state, side);
     var avail = availableMoves(state, side);
     var i, mi, mv, best = avail[0], bestVal = -1;
     var canKill = false, healIdx = -1;
 
     for (i = 0; i < avail.length; i++) {
       mi = avail[i]; mv = me.moves[mi];
-      var p = successProb(me, mv, n);
+      var p = turnProb(state, side, mv);
       var val = 0;
       if (mv.kind === 'atk') {
         var plus = mv.eff && mv.eff.plus ? mv.eff.plus : 0;
@@ -558,16 +597,18 @@
     if (state.over) return null;
     var side = state.turn, foe = 1 - side;
     var me = state.chars[side], mv = me.moves[moveIdx];
-    var n = energyCount(state, side);
+    var e = energyIndices(state, side, rng);   // 消える1個はここで決まる（手番の開始時）
+    var idx = e.idx, n = idx.length;
+    state.energySkip[side] = e.skip;
     state.energyMinus[side] = false; // この手番で消費
 
     var orient = rollChar(me, rng);
-    var faces = rollEnergy(me, n, rng);
+    var faces = rollEnergy(me, idx, rng);
     var success = matchCost(mv.cost, faces);
     var hit = success && mv.hit.indexOf(orient) >= 0; // 当たり目効果は成功時のみ
 
     var r = {
-      side: side, moveIdx: moveIdx, move: mv, n: n,
+      side: side, moveIdx: moveIdx, move: mv, n: n, idx: idx, skip: e.skip,
       orient: orient, faces: faces, success: success, orientHit: hit,
       damage: 0, selfDamage: 0, heal: 0, guard: false, minus: false, halved: false
     };
@@ -679,7 +720,8 @@
     rollDrop: rollDrop,
     rollChar: rollChar, rollEnergy: rollEnergy, matchCost: matchCost,
     successProb: successProb, orientProb: orientProb, hitLabel: hitLabel,
-    newState: newState, energyCount: energyCount, availableMoves: availableMoves,
+    newState: newState, energyCount: energyCount, energyIndices: energyIndices,
+    baseIndices: baseIndices, turnProb: turnProb, availableMoves: availableMoves,
     cpuChoose: cpuChoose, resolveTurn: resolveTurn, simulateBattle: simulateBattle
   };
 });
