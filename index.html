@@ -288,11 +288,11 @@
 
   // ---------------- 保存（localStorage・1キーだけ） ----------------
   var SKEY = 'kamoshi-koro:v3';
-  var SVER = 6;   // v6: 固定3面（属性2＋✨1）＋カスタム3面・✨チップ廃止・チップ12枚。旧版（v5以前）は読まずに初期化する
+  var SVER = 6;   // v6: 固定3面（属性2＋✨1）＋カスタム3面・✨チップ廃止・初期チップ7〜8枚。旧版（v5以前）は読まずに初期化する
   var save = null;
 
   function freshSave(){
-    // 手持ちチップ（12枚）は「最初にキャラを選んだとき」に配る（キャラごとに内訳が違うため）
+    // 手持ちチップは「最初にキャラを選んだとき」に配る（枚数・内訳はキャラごと。engine.js の START_CHIPS が正）
     var s = { v:SVER, chips:{}, dice:{}, moves:{}, run:null, granted:false };
     E.CHIP_ORDER.forEach(function(k){ s.chips[k] = 0; });
     E.CHARS.forEach(function(c){
@@ -427,7 +427,7 @@
   }
 
   function chooseChar(id){
-    // 手持ちチップ12枚（属性3＋他3種で9・キャラごとに偏る）。初回だけ・選ぶピッカーは作らない
+    // 手持ちチップ（4種2枚ずつ＝8枚。6号だけ🍚1で7枚）。初回だけ・選ぶピッカーは作らない
     if (!save.granted){
       var g = E.startChips(id);
       E.CHIP_ORDER.forEach(function(k){ save.chips[k] += g[k]; });
