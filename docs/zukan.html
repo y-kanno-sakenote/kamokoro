@@ -78,9 +78,9 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
 @media (max-width:640px){.grid,.flow{grid-template-columns:1fr}.head{grid-template-columns:52px 1fr}.type{grid-column:2}.emo{font-size:40px}}
 </style>
 <div class="wrap">
-  <div class="eyebrow">KAMOSHI-KORO ZUKAN v5 · きょうかい酵母</div>
+  <div class="eyebrow">KAMOSHI-KORO ZUKAN v6 · きょうかい酵母</div>
   <h1>醸しコロ図鑑</h1>
-  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、出た面（静・湧・沸・躍・極）が技の当たり目に入っていれば「当たり目効果」が乗る。当たり目は該当する漢字を静→湧→沸→躍→極の順に並べて示す（例「沸躍極」）。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。<b>属性は🌾米・🍚麹・💧水の3つ</b>（🔥温度と✨万能は属性ではなく全キャラ共通の脇役）で、<b>3すくみは 麹→米→水→麹</b>。有利な側は攻撃技の成功時ダメージが+2される。エネコロは左・中・右の3個で、下の面構成は<b>3個ともこの初期構成</b>＝<b>固定2面（属性×2・点線枠）＋カスタム4面</b>（残り2属性＋🔥＋✨。本編の準備画面でカスタム4面を1個ずつ別々に付け替えられます）。</p>
+  <p class="lead">きょうかい酵母6株（協会番号＝図鑑番号）。麹・米・水・温度はエネコロ。技を先に宣言して、キャラコロとエネコロを同時に振る。エネが揃えば成功、出た面（静・湧・沸・躍・極）が技の当たり目に入っていれば「当たり目効果」が乗る。当たり目は該当する漢字を静→湧→沸→躍→極の順に並べて示す（例「沸躍極」）。各カードの「振ってみる」で、そのキャラの転がり癖を試せます。<b>属性は🌾米・🍚麹・💧水の3つ</b>（🔥温度と✨万能は属性ではなく全キャラ共通の脇役）で、<b>3すくみは 麹→米→水→麹</b>。有利な側は攻撃技の成功時ダメージが+2される。エネコロは左・中・右の3個で、下の面構成は<b>3個ともこの既定構成</b>＝<b>固定3面（属性×2＋✨・点線枠）＋カスタム3面</b>（残り2属性＋🔥。本編の準備画面でカスタム3面を1個ずつ別々に付け替えられます）。</p>
 
   <div class="flow">
     <div><b>1 狙う</b><p>技を1つ選ぶ。前の手番に使った技は選べない</p></div>
@@ -96,9 +96,9 @@ button:hover{opacity:.9} button:focus-visible{outline:3px solid var(--kome);outl
     <ul>
       <li>二つ名は無し／支え技は残す／HPは100スケール／振り直しは一旦なし（2026-09-03 確定）</li>
       <li>属性は🌾米・🍚麹・💧水の3つだけ。3すくみは麹→米→水→麹で、有利な側は攻撃技の成功時ダメージ +2（固定・倍率にしない。2026-09-05 実測で+5→+2に確定）</li>
-      <li>エネコロ1個＝固定2面（属性×2）＋カスタム4面。3面まで積めるのは自分の属性だけ／他のエネは2面まで／✨は1面まで（2026-09-05 v5）</li>
+      <li>エネコロ1個＝固定3面（属性×2＋✨）＋カスタム3面。3面まで積めるのは自分の属性だけ／他のエネは2面まで。チップは🌾🍚💧🔥の4種で、手持ちは12枚・置ける枠は9（2026-09-05 v6）</li>
     </ul>
-    <p class="note">図鑑の一言は sake-kb で裏が取れた事実だけ（出典付き）。協会11号・泡なし7号（701号）・花酵母は控え。数値は sim 2000戦×42通り（21組×先攻後攻）で実測（2026-09-05・v5バランス確定）。3すくみOFF（土台）で全組 42.1〜58.9%、3すくみON（有利+2）で 35.8〜69.9%。6体の総合勝率は OFF 48.5〜51.4% / ON 47.3〜52.3%。目標帯は OFF=35〜65%・ON=30〜70%で、勝率はすべて帯の中。1801号だけは「ロマン枠」の個性を優先し、決着が5手前後と短いのを許容（HPは105だが失敗時に自分へ10なので実効はもっと低い）。正典は dev/kamoshi-koro/docs/characters.md。</p>
+    <p class="note">図鑑の一言は sake-kb で裏が取れた事実だけ（出典付き）。協会11号・泡なし7号（701号）・花酵母は控え。数値は sim 2000戦×42通り（21組×先攻後攻）で実測（2026-09-05・v6。既定の6面はv5と同じ多重集合なので回帰はv5と完全一致）。3すくみOFF（土台）で全組 42.1〜58.9%、3すくみON（有利+2）で 35.8〜69.9%。6体の総合勝率は OFF 48.5〜51.4% / ON 47.3〜52.3%。目標帯は OFF=35〜65%・ON=30〜70%で、勝率はすべて帯の中。1801号だけは「ロマン枠」の個性を優先し、決着が5手前後と短いのを許容（HPは105だが失敗時に自分へ10なので実効はもっと低い）。正典は dev/kamoshi-koro/docs/characters.md。</p>
   </div>
 </div>
 <script>
@@ -114,27 +114,27 @@ function hitLabel(h){
 var C=[
  {no:'6',emo:'🏺',name:'協会6号',type:'泡',tc:'t-awa',attr:'🌾米',hp:105,
   desc:'秋田・新政酒造の醪から生まれた（昭和10年）、頒布酵母の最古参。TTC染色で赤く染まる。',src:'清酒製造技術 p.196, p.198',
-  ene:'🌾🌾🍚💧🔥✨',ori:'ssauyg',bias:'静が出やすい',
+  ene:'🌾🌾✨🍚💧🔥',ori:'ssauyg',bias:'静が出やすい',
   mv:[['こつこつ','🌾',10,'sau','+5'],['あかぞめ','🌾🍚',25,'au','相手の次エネコロ-1'],['秋田の底力','🌾🌾🍚',35,'a','+10'],['ご長寿','🍚🔥',"回復20",'sa','回復+10']]},
  {no:'7',emo:'🍶',name:'協会7号',type:'泡',tc:'t-awa',attr:'🍚麹',hp:105,
   desc:'長野・宮坂醸造「真澄」の醪から生まれた（昭和21年）。泡なし酵母を探す研究で、ずっと「比較の基準」にされ続けた実力派。',src:'清酒製造技術 p.198／醸協 101(9) 2006 p.662',
-  ene:'🍚🍚🌾💧🔥✨',ori:'sssayg',bias:'静が出やすい',
+  ene:'🍚🍚✨🌾💧🔥',ori:'sssayg',bias:'静が出やすい',
   mv:[['ぷくぷく','🍚',10,'say','+5'],['高泡','🍚🌾',20,'sa','+10'],['真澄の一撃','🍚🍚💧',35,'g','自分に10'],['きじゅん','💧🔥',"半減",'sg','回復10']]},
  {no:'9',emo:'🍈',name:'協会9号',type:'香',tc:'t-kaori',attr:'💧水',hp:95,
   desc:'熊本県酒造研究所で育てられ（昭和35年）、野白式吟醸造りとともに吟醸酒を安定させた「熊本酵母」。',src:'醸協 84(12) 1989 p.854／清酒製造技術 p.198',
-  ene:'💧💧🌾🍚🔥✨',ori:'yyysag',bias:'躍が出やすい',
+  ene:'💧💧✨🌾🍚🔥',ori:'yyysag',bias:'躍が出やすい',
   mv:[['吟醸香','💧',10,'yg','+5'],['野白式','💧🔥',25,'ay','+5'],['熊本の華','💧💧🔥',35,'y','相手の次エネコロ-1'],['低温じっくり','🍚🔥',"回復35",'sy','回復+10']]},
  {no:'10',emo:'❄️',name:'協会10号',type:'泡',tc:'t-awa',attr:'🌾米',hp:110,
   desc:'東北の酒造場の醪から分離され（昭和27年）、小川らが育て上げた。',src:'清酒製造技術 p.198',
-  ene:'🌾🌾🍚💧🔥✨',ori:'aaasyu',bias:'湧が出やすい',
+  ene:'🌾🌾✨🍚💧🔥',ori:'aaasyu',bias:'湧が出やすい',
   mv:[['しんしん','🌾',10,'sau','+5'],['雪どけ','🌾💧',20,'sa','回復5'],['東北の底冷え','🌾🌾🔥',35,'a','相手の次エネコロ-1'],['冬ごもり','🍚🔥',"回復20",'au','回復+10']]},
  {no:'14',emo:'🍏',name:'協会14号',type:'香',tc:'t-kaori',attr:'💧水',hp:105,
   desc:'金沢国税局管内で使われていた「金沢酵母」を平成7年度から全国配布。酸が少なく吟醸香が高い。',src:'醸協 90(9) 1995 p.682',
-  ene:'💧💧🌾🍚🔥✨',ori:'yyssag',bias:'躍・静が出やすい',
+  ene:'💧💧✨🌾🍚🔥',ori:'yyssag',bias:'躍・静が出やすい',
   mv:[['すっきり','💧',10,'ayg','+5'],['金沢香','🍚🔥',25,'sa','+15'],['酸なしの美','💧💧🍚',30,'y','+10'],['北陸の水','💧🔥',"回復20",'yg','回復+5']]},
  {no:'1801',emo:'🧬',name:'協会1801号',type:'香',tc:'t-kaori',attr:'🍚麹',hp:105,
   desc:'1601号×1701号の交雑株。セルレニン耐性でりんごの香り（カプロン酸エチル）を大量に作る。有機酸が少なく、イソアミルアルコールは協会酵母で最少。',src:'醸協 101(12) 2006 p.913, p.918',kin:'1601号 × 1701号',trait:'とくせい「ロマン」: 技が失敗すると自分に10',
-  ene:'🍚🍚🌾💧🔥✨',ori:'ggyysa',bias:'極・躍が出やすい',
+  ene:'🍚🍚✨🌾💧🔥',ori:'ggyysa',bias:'極・躍が出やすい',
   mv:[['セルレニン耐性','🍚',10,'ayg','+5'],['ハイブリッド','🍚💧',30,'yg','+5'],['りんご香バースト','🍚💧🔥',40,'g','+10'],['親ゆずり','💧🔥',"回復35",'sa','回復+20']]}
 ];
 function seg(s){return Array.from(s).filter(function(ch){return ch.trim()!=='' && ch!=='️';}).map(function(ch){return ch;});}
@@ -149,7 +149,7 @@ C.forEach(function(c,i){
    '<div class="head"><div class="emo">'+c.emo+'</div><div><div class="no">No.'+c.no+'</div><h2 class="name">'+c.name+'</h2></div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span class="type '+c.tc+'">'+c.type+'タイプ</span><span class="attr">'+c.attr+'</span></div></div>'+
    '<div class="hp">HP '+c.hp+'<i><b style="width:'+(c.hp/120*100)+'%"></b></i></div>'+
    '<p class="desc">'+c.desc+'</p><p class="src">出典: '+c.src+'</p>'+(c.kin?'<p class="kin">血縁: '+c.kin+'</p>':'')+(c.trait?'<p class="trait">'+c.trait+'</p>':'')+
-   '<div class="dice"><span>エネコロ<br><small style="font-size:9px;opacity:.7">左・中・右3個とも同じ／点線＝属性の固定2面</small></span><div class="faces" data-e>'+eneFaces(c.ene).map(function(f,ix){return '<span class="face'+(ix<2?' fix':'')+'">'+f+'</span>';}).join('')+'</div>'+
+   '<div class="dice"><span>エネコロ<br><small style="font-size:9px;opacity:.7">左・中・右3個とも同じ／点線＝固定3面（属性×2＋✨）</small></span><div class="faces" data-e>'+eneFaces(c.ene).map(function(f,ix){return '<span class="face'+(ix<3?' fix':'')+'">'+f+'</span>';}).join('')+'</div>'+
    '<span>キャラコロ</span><div><div class="faces" data-o>'+ori.map(function(o){return '<span class="face">'+ORI[o]+'</span>';}).join('')+'</div><div style="font-size:11px;margin-top:3px">'+c.bias+'</div></div></div>'+
    '<table><thead><tr><th>技</th><th>コスト</th><th style="text-align:right">威力</th><th>当たり目 → 効果</th></tr></thead><tbody>'+
    c.mv.map(function(m){return '<tr><td class="mv">'+m[0]+'</td><td class="cost">'+m[1]+'</td><td class="pw">'+m[2]+'</td><td>'+hitLabel(m[3])+' → '+m[4]+'</td></tr>';}).join('')+

@@ -55,7 +55,7 @@
   .pv .o{font-size:11px;color:var(--accent);white-space:nowrap;width:76px;flex:none;text-align:right}
   .pv .wn{font-size:9px}
 
-  /* 準備: エネコロ3個（左・中・右）を3行で。1行＝固定2面（🔒属性×2）＋カスタム4面（v5） */
+  /* 準備: エネコロ3個（左・中・右）を3行で。1行＝固定3面（🔒属性×2＋✨）＋カスタム3面（v6） */
   .dierow{display:flex;align-items:center;gap:5px;margin-top:4px}
   .dierow .dl{font-size:11px;color:var(--sub);width:12px;flex:none;text-align:center}
   .facebar{flex:1;display:flex;gap:4px}
@@ -63,12 +63,15 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
   .fs .v{font-size:19px;line-height:1}
   .fs.chip{border-color:var(--accent)}
-  /* 固定2面（属性×2）＝🔒。押せない */
+  /* 固定3面（属性×2＋✨）＝🔒。押せない */
   .fs.fix{cursor:default;border-style:dashed;background:#181410}
+  /* 🔒3面とカスタム3面のあいだに切れ目を入れる */
+  .fs.cut{margin-left:7px}
   .fs .lk{position:absolute;top:1px;right:3px;font-size:8px;opacity:.65;line-height:1}
   .inv{display:flex;flex-wrap:wrap;gap:4px 9px;font-size:11px;color:var(--sub);margin-top:6px;line-height:1.5}
   .inv span.z{opacity:.35}
   .inv b{color:var(--fg);font-weight:700}
+  .inv i{font-style:normal;opacity:.6}
 
   /* チップ選択シート */
   .sheet{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9;
@@ -204,8 +207,9 @@
     <div class="prow" id="prep-char"></div>
     <div class="ttl">わざを4つえらぶ <span id="prep-cnt"></span></div>
     <div class="pool" id="prep-pool"></div>
-    <div class="ttl">エネコロ3個（左から振る・🔒は属性の固定2面）</div>
+    <div class="ttl">エネコロ3個（左から振る・🔒は固定3面）</div>
     <div id="prep-dice"></div>
+    <div class="ttl">チップ <span id="prep-used"></span></div>
     <div class="inv" id="prep-inv"></div>
     <button class="btn" id="go">たたかう</button>
   </section>
@@ -284,15 +288,15 @@
 
   // ---------------- 保存（localStorage・1キーだけ） ----------------
   var SKEY = 'kamoshi-koro:v3';
-  var SVER = 5;   // v5: 属性制＋固定2面の復活。形が変わったので旧版（v4以前）は読まずに初期化する
+  var SVER = 6;   // v6: 固定3面（属性2＋✨1）＋カスタム3面・✨チップ廃止・チップ12枚。旧版（v5以前）は読まずに初期化する
   var save = null;
 
   function freshSave(){
-    // 初期チップ（6枚）は「最初にキャラを選んだとき」に配る（自分の属性が決まらないと配れないため）
+    // 手持ちチップ（12枚）は「最初にキャラを選んだとき」に配る（キャラごとに内訳が違うため）
     var s = { v:SVER, chips:{}, dice:{}, moves:{}, run:null, granted:false };
     E.CHIP_ORDER.forEach(function(k){ s.chips[k] = 0; });
     E.CHARS.forEach(function(c){
-      s.dice[c.id] = E.normalizeChips(null);   // 3個 × 6スロット（初期は3個とも素の面）
+      s.dice[c.id] = E.normalizeChips(null);   // 3個 × 6スロット（既定は3個とも素の面＝空白ではない）
       s.moves[c.id] = c.star.slice();
     });
     return s;
@@ -344,7 +348,7 @@
     try { s = JSON.parse(localStorage.getItem(SKEY)); } catch(e) { s = null; }
     if (!validSave(s)) s = freshSave();   // 壊れている・v3以前 → 丸ごと捨てて初期化（例外は出さない）
     E.CHARS.forEach(function(c){ s.dice[c.id] = E.normalizeChips(s.dice[c.id]); });
-    repairAllSlots(s);                    // 上限違反（1個ごとに 属性3面・他2面・✨1面）があれば素の面へ戻す
+    repairAllSlots(s);                    // 上限違反（1個ごとに 属性3面・他2面）があれば素の面へ戻す
     if (s.run && s.run.lap == null) s.run.lap = 1;
     return s;
   }
@@ -377,7 +381,9 @@
   function en(k){ return E.ENERGY[k].emoji; }
   // 3個ぶんの面構成（キャラ選択カード用）。3個とも同じなら1行にまとめる（初期はいつも1行）
   function facesLines(f){
-    var ls = f.energy.map(function(d){ return d.map(E.faceEmoji).join(''); });
+    var ls = f.energy.map(function(d){
+      return E.SLOT_ORDER.map(function(i){ return E.faceEmoji(d[i]); }).join('');
+    });
     var same = ls[0] === ls[1] && ls[1] === ls[2];
     return same ? ls[0] : ls.join('<br>');
   }
@@ -421,7 +427,7 @@
   }
 
   function chooseChar(id){
-    // 初期チップ6枚（自分の属性×2＋それ以外の4種×1枚）。初回だけ・選ぶピッカーは作らない
+    // 手持ちチップ12枚（属性3＋他3種で9・キャラごとに偏る）。初回だけ・選ぶピッカーは作らない
     if (!save.granted){
       var g = E.startChips(id);
       E.CHIP_ORDER.forEach(function(k){ save.chips[k] += g[k]; });
@@ -492,10 +498,11 @@
       pool.appendChild(d);
     });
 
-    // エネコロ3個（左・中・右）。1行＝その個の6面（v4で全面カスタム可）
+    // エネコロ3個（左・中・右）。1行＝🔒固定3面（属性×2＋✨）＋カスタム3面。並びは SLOT_ORDER
     var dice = E.buildEnergy(prepChar, save.dice[id]);
     var bar = $('prep-dice');
     bar.innerHTML = '';
+    var placed = 0;
     dice.forEach(function(faces, di){
       var row = document.createElement('div');
       row.className = 'dierow';
@@ -505,11 +512,14 @@
       row.appendChild(lab);
       var fb = document.createElement('div');
       fb.className = 'facebar';
-      faces.forEach(function(f, slot){
+      E.SLOT_ORDER.forEach(function(slot, pos){
         var chip = save.dice[id][di][slot], fixed = E.isFixedSlot(slot);
+        if (chip) placed++;
         var d = document.createElement('div');
-        d.className = 'fs' + (chip ? ' chip' : '') + (fixed ? ' fix' : '');
-        d.innerHTML = '<span class="v">'+E.faceEmoji(f)+'</span>' + (fixed ? '<span class="lk">🔒</span>' : '');
+        d.className = 'fs' + (chip ? ' chip' : '') + (fixed ? ' fix' : '') +
+                      (pos === E.FIXED_N ? ' cut' : '');
+        d.innerHTML = '<span class="v">'+E.faceEmoji(faces[slot])+'</span>' +
+                      (fixed ? '<span class="lk">🔒</span>' : '');
         if (!fixed) d.onclick = function(){ openSheet(di, slot); };
         fb.appendChild(d);
       });
@@ -517,15 +527,27 @@
       bar.appendChild(row);
     });
 
-    var inv = $('prep-inv');
+    // 在庫は「のこり/ぜんぶ」。9枠のうち何枠にチップを置いたかも1語で出す
+    var inv = $('prep-inv'), all = E.startChips(id);
     inv.innerHTML = E.CHIP_ORDER.map(function(k){
       var n = save.chips[k];
-      return '<span class="'+(n?'':'z')+'">'+E.CHIPS[k].emoji+'<b>'+n+'</b></span>';
+      return '<span class="'+(n?'':'z')+'">'+E.CHIPS[k].emoji+'<b>'+n+'</b><i>/'+
+             (n + countPlaced(id, k))+'</i></span>';
     }).join('');
+    $('prep-used').textContent = placed + '/' + (E.DICE_N * E.CUSTOM_N) + '枠　のこり/ぜんぶ';
 
-    // 出発の条件は「技4つ」だけ（v4で持ち込みの選択は廃止＝最初から在庫に4枚入っている）
+    // 出発の条件は「技4つ」だけ。9枠は既定の面で埋まっているので空きは無い
     $('go').disabled = sel.length !== 4;
     $('go').textContent = sel.length === 4 ? 'たたかう' : 'わざを' + (4 - sel.length) + 'つえらぶ';
+  }
+
+  // そのキャラの9枠に置いてあるチップの枚数（種類ごと）
+  function countPlaced(id, kind){
+    var n = 0;
+    save.dice[id].forEach(function(row){
+      row.forEach(function(c){ if (c === kind) n++; });
+    });
+    return n;
   }
 
   function toggleMove(i){
@@ -538,7 +560,7 @@
 
   // チップ選択シート
   function openSheet(die, slot){
-    if (E.isFixedSlot(slot)) return;      // 固定2面（属性×2）は差し替えられない
+    if (E.isFixedSlot(slot)) return;      // 固定3面（属性×2＋✨）は差し替えられない
     sheetDie = die; sheetSlot = slot;
     var id = prepChar.id, cur = save.dice[id][die][slot];
     var bare = E.faceEmoji([prepChar.slots[slot]]);
@@ -548,7 +570,7 @@
     box.innerHTML = '';
     E.CHIP_ORDER.forEach(function(k){
       var n = save.chips[k], on = (cur === k);
-      // 上限（1個につき 属性3面・他のエネ2面・✨1面）に触れる置き換えはグレーにして選ばせない。理由を短く出す
+      // 上限（1個につき 属性3面・他のエネ2面）に触れる置き換えはグレーにして選ばせない。理由を短く出す
       var chk = on ? { ok: true } : E.canPlaceChip(prepChar, save.dice[id], die, slot, k);
       var disabled = (!n && !on) || !chk.ok;
       var d = document.createElement('div');
@@ -689,10 +711,10 @@
   function charFaceHtml(k){
     return '<span class="kj">' + oKan(k) + '</span>';
   }
-  // 6面を小さく2段（3面ずつ）で。ダイスの真下に出すので幅に収める
+  // 6面を小さく2段で。上段＝🔒固定3面（属性×2＋✨）／下段＝カスタム3面。ダイスの真下に出す
   function faceLines(faces){
-    var e = faces.map(E.faceEmoji);
-    return e.slice(0,3).join('') + '<br>' + e.slice(3).join('');
+    var e = E.SLOT_ORDER.map(function(i){ return E.faceEmoji(faces[i]); });
+    return e.slice(0, E.FIXED_N).join('') + '<br>' + e.slice(E.FIXED_N).join('');
   }
   // 面構成（チップ差し替え込み）から立方体を作る。エネコロは3個それぞれ面が違う
   function buildDice(side, c){
@@ -837,10 +859,9 @@
     var win = st.winner === ME;
     lastGot = [];
     if (win){
-      lastGot.push(E.rollDrop(foeF, null));                       // 通常枠
+      lastGot.push(E.rollDrop(foeF, null));   // v6: 勝つたびに🌾🍚💧🔥のどれか1枚だけ（レア枠は廃止）
       save.run.wins++;
       save.run.rest.shift();
-      if (save.run.wins % 3 === 0) lastGot.push(E.rollRare(null)); // 3勝ごとにレア
       lastGot.forEach(function(k){ save.chips[k]++; });
     } else {
       save.run = null;                                            // 負けたらその周は終了

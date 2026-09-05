@@ -1,5 +1,8 @@
-// 醸しコロ ロジック層 v5（属性制・固定2面＋カスタム4面・属性3すくみ・ブラウザ / node 両用）
-// 数値の正は docs/characters.md、ルールの正は docs/spec_v5.md（v2部分は docs/spec.md）。ここでは勝手に調整しない。
+// 醸しコロ ロジック層 v6（属性制・固定3面＋カスタム3面・属性3すくみ・ブラウザ / node 両用）
+// 数値の正は docs/characters.md、ルールの正は docs/spec_v5.md（v6の本文。v2部分は docs/spec.md）。ここでは勝手に調整しない。
+// v6（2026-09-05 ユーザー裁定）: 固定は **属性×2 ＋ ✨×1 の3面**。カスタムは残り3面（他属性2＋🔥）。
+//   ✨は全ダイスに必ず1面あるので **✨チップとレア枠は廃止**（チップは🌾🍚💧🔥の4種だけ）。
+//   素の6面の並びは v5 のまま（固定は slots[0],[1],[5]）＝既定構成の回帰が v5 と1戦単位で一致する。
 (function (root, factory) {
   var api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -47,26 +50,37 @@
   function typeAdvOn() { return advOn; }
   function hasAdv(atkAttr, defAttr) { return TYPE_ADV[atkAttr] === defAttr; }
 
-  // チップ5種（面の値は「エネキーの配列」。2026-09-03: 2エネ面は廃止＝レアは✨だけ）
-  var CHIP_ORDER = ['rice', 'koji', 'water', 'heat', 'wild'];
+  // チップ4種（面の値は「エネキーの配列」）。
+  // v6: **✨チップは廃止**。✨は全ダイスの固定面に必ず1面あるので、チップとして配る意味が無い（レア枠も廃止）。
+  var CHIP_ORDER = ['rice', 'koji', 'water', 'heat'];
   var CHIPS = {
-    rice:   { face: ['rice'],  emoji: '🌾', rare: false },
-    koji:   { face: ['koji'],  emoji: '🍚', rare: false },
-    water:  { face: ['water'], emoji: '💧', rare: false },
-    heat:   { face: ['heat'],  emoji: '🔥', rare: false },
-    wild:   { face: ['wild'],  emoji: '✨', rare: true }
+    rice:   { face: ['rice'],  emoji: '🌾' },
+    koji:   { face: ['koji'],  emoji: '🍚' },
+    water:  { face: ['water'], emoji: '💧' },
+    heat:   { face: ['heat'],  emoji: '🔥' }
   };
 
-  // 開始時のチップ（v5 / 2026-09-04 ユーザー裁定）
-  // **選ばせない**。新しいセーブで最初にキャラを選んだときに、
-  // **自分の属性チップ×2 ＋ それ以外の4種×1枚ずつ＝合計6枚**を自動で在庫に入れるだけ。
-  var START_CHIPS = { attr: 2, other: 1 };
+  // 開始時のチップ（v6 / 2026-09-05 ユーザー裁定）
+  // **選ばせない**。新しいセーブで最初にキャラを選んだときに **12枚**を自動で在庫に入れるだけ。
+  // 内訳は **属性3枚（＝3個のダイスに1枚ずつ載る上限ぴったり）＋ 他3種で9枚**。
+  // 他3種の9枚は 4・3・2 に割り、**技プール7つでの需要が多い順**に多く配る（キャラごとに偏る）。
+  // 置ける枠は 3面×3個＝9 なので、12枚は必ず余る＝「何を諦めるか」が準備画面の判断になる。
+  var START_CHIPS = {
+    k6:    { rice: 3, koji: 4, water: 3, heat: 2 },   // 🌾米。需要 🍚4>💧2=🔥2
+    k7:    { koji: 3, water: 4, rice: 3, heat: 2 },   // 🍚麹。需要 💧3>🌾2=🔥2
+    k9:    { water: 3, heat: 4, koji: 3, rice: 2 },   // 💧水。需要 🔥4>🍚2>🌾1
+    k10:   { rice: 3, heat: 4, koji: 3, water: 2 },   // 🌾米。需要 🔥4>🍚2=💧2
+    k14:   { water: 3, heat: 4, koji: 3, rice: 2 },   // 💧水。需要 🔥4>🍚2>🌾1
+    k1801: { koji: 3, heat: 4, water: 3, rice: 2 }    // 🍚麹。需要 🔥4>💧3>🌾1
+  };
+  var START_CHIPS_TOTAL = 12;
   function startChips(charOrId) {
-    var c = typeof charOrId === 'string' ? getChar(charOrId) : charOrId;
+    var id = typeof charOrId === 'string' ? charOrId : (charOrId && charOrId.id);
+    var src = START_CHIPS[id] || {};
     var out = {}, i, k;
     for (i = 0; i < CHIP_ORDER.length; i++) {
       k = CHIP_ORDER[i];
-      out[k] = (c && k === c.attr) ? START_CHIPS.attr : START_CHIPS.other;
+      out[k] = src[k] || 0;
     }
     return out;
   }
@@ -82,7 +96,7 @@
   var CHARS = [
     {
       id: 'k6', no: '6', emoji: '🏺', name: '協会6号', type: '🫧泡', attr: 'rice', hp: 105,
-      // 素の6面（v5）= 固定2面（属性×2）＋ カスタム4面（残り2属性＋🔥＋✨）
+      // 素の6面 = 固定3面（属性×2＋✨）＋ カスタム3面（残り2属性＋🔥）。並びは v5 のまま（固定は 0・1・5）
       slots: ['rice', 'rice', 'koji', 'water', 'heat', 'wild'],
       die: ['s', 's', 'a', 'u', 'y', 'g'],
       star: [0, 2, 4, 6],
@@ -185,13 +199,20 @@
 
   // ---- エネコロの組み立て --------------------------------------------------
   // エネコロは **左・中・右の3個**。表示順＝振るときの並び。
-  // v5（2026-09-04・ユーザー裁定）: **固定2面を復活**。
-  //   スロット0・1 = 固定面（そのキャラの属性×2。チップは置けない）
-  //   スロット2〜5 = カスタム4面（初期値は残り2属性＋🔥＋✨）
+  // v6（2026-09-05・ユーザー裁定）: **固定3面＝属性×2 ＋ ✨×1**／**カスタム3面＝残り2属性＋🔥**。
+  //   素の6面（char.slots）の並びは v5 のまま [属性,属性,他属性,他属性,🔥,✨] なので、
+  //   固定はスロット **0・1・5**、カスタムは **2・3・4**（連番ではない）。
+  //   並びを変えなかったのは、既定構成の回帰が v5 と1戦単位で一致することを検算に使うため。
+  //   画面に出すときは SLOT_ORDER（🔒3面 → カスタム3面）の順に並べ替える。
   var DICE_N = 3;
   var SLOTS_N = 6;
-  var FIXED_N = 2;
+  var FIXED_SLOTS = [0, 1, 5];
+  var CUSTOM_SLOTS = [2, 3, 4];
+  var SLOT_ORDER = FIXED_SLOTS.concat(CUSTOM_SLOTS);   // 表示順（🔒🔒🔒＋カスタム3）
+  var FIXED_N = FIXED_SLOTS.length;                    // 3
+  var CUSTOM_N = CUSTOM_SLOTS.length;                  // 3
   var DICE_LABEL = ['左', '中', '右'];
+  function isFixedSlot(slot) { return FIXED_SLOTS.indexOf(slot) >= 0; }
   function emptyRow() {
     var r = [], i;
     for (i = 0; i < SLOTS_N; i++) r.push(null);
@@ -203,19 +224,21 @@
   function buildDie(char, chips1) {
     var faces = [], i;
     for (i = 0; i < char.slots.length; i++) {
-      var c = (i >= FIXED_N) ? (chips1 && chips1[i]) : null;
+      var c = isFixedSlot(i) ? null : (chips1 && chips1[i]);
       faces.push(c && CHIPS[c] ? CHIPS[c].face.slice() : [char.slots[i]]);
     }
     return faces;
   }
   // chips を必ず「3個 × 6スロット」に整える。形が合わないものは素の面（null）に落とすだけで例外は出さない。
-  // 固定2面は問答無用で null（旧セーブがチップを持っていても捨てる）。
+  // 固定3面（0・1・5）は問答無用で null（旧セーブがチップを持っていても捨てる）。
   function normalizeChips(chips) {
     var out = [], i, j;
     for (i = 0; i < DICE_N; i++) {
       var src = chips && chips[i];
       var row = emptyRow();
-      if (src && src.length === SLOTS_N) for (j = FIXED_N; j < SLOTS_N; j++) row[j] = src[j] || null;
+      if (src && src.length === SLOTS_N) {
+        for (j = 0; j < CUSTOM_SLOTS.length; j++) row[CUSTOM_SLOTS[j]] = src[CUSTOM_SLOTS[j]] || null;
+      }
       out.push(row);
     }
     return out;
@@ -239,10 +262,11 @@
     return dice.map(facesSig).join('/');
   }
 
-  // ---- カスタム上限（v5・2026-09-05 裁定で締めた・spec_v5.md §2.1） --------
-  // 同じ種類のエネを **3面まで積めるのは自分の属性だけ**（固定2面＋チップ1＝3面）。
-  // 他のエネ（他属性・🔥）は **1個につき2面まで**。✨は **1個につき1面まで**（据え置き）。
-  // 「素の面と同じチップは置けない」も据え置き。固定2面（スロット0・1）にはそもそも置けない。
+  // ---- カスタム上限（v6・据え置き・spec_v5.md §2.1） ----------------------
+  // 同じ種類のエネを **3面まで積めるのは自分の属性だけ**（固定2面＋カスタム1＝3面）。
+  // 他のエネ（他属性・🔥）は **1個につき2面まで**（素の1＋チップ1）。
+  // ✨は **固定の1面だけ**（v6でチップが無くなったので構造的に必ず1面。上限判定は不要）。
+  // 「素の面と同じチップは置けない」も据え置き。固定3面（0・1・5）にはそもそも置けない。
   var LIMIT_ATTR = 3, LIMIT_OTHER = 2, LIMIT_WILD = 1;
   // そのキャラにとっての種類 kind の上限
   function limitFor(char, kind) {
@@ -255,14 +279,13 @@
   }
   var SAME_FACE_MSG = '同じ面です';
   var FIXED_MSG = '固定の面';
-  function isFixedSlot(slot) { return slot < FIXED_N; }
   function isSameAsNativeFace(char, slot, chipKey) {
     return !!(chipKey && CHIPS[chipKey] && CHIPS[chipKey].face[0] === char.slots[slot]);
   }
 
   // 上限は **1個ごと** に効く。3個とも同じ上限。
   function slotFace(char, chips1, i) {
-    var c = (i >= FIXED_N) ? (chips1 && chips1[i]) : null;
+    var c = isFixedSlot(i) ? null : (chips1 && chips1[i]);
     return (c && CHIPS[c]) ? CHIPS[c].face : [char.slots[i]];
   }
   // ダイス1個の6面（素の面 or チップ）を種類ごとに数える
@@ -302,28 +325,31 @@
     next[slot] = chipKey || null;
     return validateDie(char, next);
   }
-  // ダイス1個ぶんの上限違反・廃止チップ・固定面へのチップを直す
+  // ダイス1個ぶんの上限違反・廃止チップ（v5の✨チップを含む）・固定面へのチップを直す
   function repairDie(char, chips1) {
     var cur = (chips1 && chips1.length === SLOTS_N) ? chips1.slice() : emptyRow();
-    var removed = [], i;
-    for (i = 0; i < FIXED_N; i++) cur[i] = null;              // 固定面は常に素の面
-    for (i = FIXED_N; i < cur.length; i++) {
-      if (cur[i] && !CHIPS[cur[i]]) cur[i] = null;            // 廃止済みチップ
+    var removed = [], i, sl;
+    for (i = 0; i < FIXED_SLOTS.length; i++) cur[FIXED_SLOTS[i]] = null;   // 固定3面は常に素の面
+    for (i = 0; i < CUSTOM_SLOTS.length; i++) {
+      sl = CUSTOM_SLOTS[i];
+      if (cur[sl] && !CHIPS[cur[sl]]) cur[sl] = null;                      // 廃止済みチップ（✨など）
     }
-    for (i = FIXED_N; i < cur.length; i++) {
-      if (cur[i] && isSameAsNativeFace(char, i, cur[i])) {    // 素の面と同じチップ
-        removed.push(cur[i]);
-        cur[i] = null;
+    for (i = 0; i < CUSTOM_SLOTS.length; i++) {
+      sl = CUSTOM_SLOTS[i];
+      if (cur[sl] && isSameAsNativeFace(char, sl, cur[sl])) {              // 素の面と同じチップ
+        removed.push(cur[sl]);
+        cur[sl] = null;
       }
     }
     var guard = 0, v;
     while (!(v = validateDie(char, cur)).ok && guard++ < SLOTS_N + 2) {
       var done = false;
-      for (i = cur.length - 1; i >= FIXED_N && !done; i--) {
-        var c = cur[i];
+      for (i = CUSTOM_SLOTS.length - 1; i >= 0 && !done; i--) {
+        sl = CUSTOM_SLOTS[i];
+        var c = cur[sl];
         if (!c || !CHIPS[c]) continue;
         if (CHIPS[c].face[0] === v.kind) {
-          removed.push(c); cur[i] = null; done = true;
+          removed.push(c); cur[sl] = null; done = true;
         }
       }
       if (!done) break; // 外せるチップが無い（固定面だけの違反＝起きない）
@@ -432,15 +458,15 @@
   }
 
   // ---- 蔵めぐりの報酬 ------------------------------------------------------
+  // v6: 勝つたびに🌾🍚💧🔥のどれか1枚だけ（**3勝ごとのレア枠は廃止**。✨チップが無くなったため）。
+  // 表の中身は v5 から据え置き＝倒した相手のタイプ寄りが50%（泡→🍚 / 香→💧）。
   var DROP = {
     awa:   ['koji', 'koji', 'koji', 'rice', 'water', 'heat'],
     kaori: ['water', 'water', 'water', 'rice', 'koji', 'heat']
   };
-  var RARE = ['wild'];
 
   function typeKey(char) { return char.type.indexOf('泡') >= 0 ? 'awa' : 'kaori'; }
   function rollDrop(foeChar, rng) { return pick(DROP[typeKey(foeChar)], rng); }
-  function rollRare(rng) { return pick(RARE, rng); }
 
   // ---- 状態 ----------------------------------------------------------------
   function newState(charA, charB, rng, loadA, loadB) {
@@ -622,20 +648,21 @@
     ATTR: ATTR, ATTR_ORDER: ATTR_ORDER, TYPE_ADV: TYPE_ADV, ADV_BONUS: ADV_BONUS,
     attrLabel: attrLabel, hasAdv: hasAdv, setTypeAdv: setTypeAdv, typeAdvOn: typeAdvOn,
     isAttrMove: isAttrMove,
-    CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP, RARE: RARE,
-    START_CHIPS: START_CHIPS, startChips: startChips,
+    CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP,
+    START_CHIPS: START_CHIPS, START_CHIPS_TOTAL: START_CHIPS_TOTAL, startChips: startChips,
     LIMIT_ATTR: LIMIT_ATTR, LIMIT_OTHER: LIMIT_OTHER, LIMIT_WILD: LIMIT_WILD,
     limitFor: limitFor, limitMsg: limitMsg,
     FIXED_MSG: FIXED_MSG, SAME_FACE_MSG: SAME_FACE_MSG,
-    DICE_N: DICE_N, SLOTS_N: SLOTS_N, FIXED_N: FIXED_N, DICE_LABEL: DICE_LABEL,
-    isFixedSlot: isFixedSlot,
+    DICE_N: DICE_N, SLOTS_N: SLOTS_N, FIXED_N: FIXED_N, CUSTOM_N: CUSTOM_N,
+    FIXED_SLOTS: FIXED_SLOTS, CUSTOM_SLOTS: CUSTOM_SLOTS, SLOT_ORDER: SLOT_ORDER,
+    DICE_LABEL: DICE_LABEL, isFixedSlot: isFixedSlot,
     validateSlots: validateSlots, validateDie: validateDie, canPlaceChip: canPlaceChip,
     repairSlots: repairSlots, repairDie: repairDie,
     countSlots: countSlots, slotFace: slotFace, normalizeChips: normalizeChips,
     getChar: getChar,
     buildDie: buildDie, buildEnergy: buildEnergy, buildFighter: buildFighter,
     faceEmoji: faceEmoji, facesSig: facesSig, diceSig: diceSig, typeKey: typeKey,
-    rollDrop: rollDrop, rollRare: rollRare,
+    rollDrop: rollDrop,
     rollChar: rollChar, rollEnergy: rollEnergy, matchCost: matchCost,
     successProb: successProb, orientProb: orientProb, hitLabel: hitLabel,
     newState: newState, energyCount: energyCount, availableMoves: availableMoves,

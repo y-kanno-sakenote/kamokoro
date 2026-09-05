@@ -1,6 +1,7 @@
-// 醸しコロ 実測（v5: 属性制・固定2面＋カスタム4面・属性3すくみ）
-//  回帰（既定）: 21組×先攻後攻＝42通りを既定2000戦。初期構成（★4技・素の面）＋6体の総合勝率
-//  --v3        : 技セット総当たり・ダイス総当たり・上限内最強 vs 初期・ドロップ期待値・初期チップ6枚
+// 醸しコロ 実測（v6: 属性制・固定3面（属性2＋✨1）＋カスタム3面・属性3すくみ）
+//  回帰（既定）: 21組×先攻後攻＝42通りを既定2000戦。既定構成（★4技・素の面）＋6体の総合勝率
+//               → 既定の6面は v5 と同じ多重集合・同じ並びなので、**v5の回帰と1戦単位で一致する**
+//  --v3        : 技セット総当たり・ダイス総当たり・上限内最強 vs 既定・ドロップ期待値・手持ち12枚の最良
 //  --noadv     : 属性3すくみを切って測る（engine の切り替えフラグ。既定はON）
 // 使い方: node sim/sim.js [回数] [--v3] [--noadv]
 'use strict';
@@ -16,6 +17,8 @@ var NOADV = process.argv.indexOf('--noadv') >= 0;
 E.setTypeAdv(!NOADV);
 var ADVTAG = E.typeAdvOn() ? '3すくみON（有利+' + E.ADV_BONUS + '）' : '3すくみOFF';
 var CH = E.CHARS;
+// 「上限内最強 vs 既定」の目標（2026-09-05 裁定で 85%→90%）
+var GOAL = 0.90;
 
 // 乱数（seed固定で再現できるようにする）
 function makeRng(seed) {
@@ -31,7 +34,7 @@ function pc(x) { return (x * 100).toFixed(1) + '%'; }
 function atr(c) { return E.attrLabel(c.attr); }
 
 // =====================================================================
-// 回帰（初期構成のまま。42通り＝21組×先攻後攻）
+// 回帰（既定構成のまま。42通り＝21組×先攻後攻）
 // =====================================================================
 function runV2() {
   var rng = makeRng(20260903);
@@ -62,7 +65,7 @@ function runV2() {
     }
   }
 
-  console.log('# 醸しコロ v5 初期構成（★4技・素の面）のバランス実測（各 ' + N + ' 戦 / 全 ' + rows.length + ' 通り）');
+  console.log('# 醸しコロ v6 既定構成（★4技・素の面）のバランス実測（各 ' + N + ' 戦 / 全 ' + rows.length + ' 通り）');
   console.log('属性: ' + ATTR_LINE() + '／' + ADVTAG + '\n');
   console.log('| 組み合わせ | 先攻 | 先手側の勝率 | Aの勝率 | 平均手番(片側) | 宣言成功率 |');
   console.log('|---|---|---|---|---|---|');
@@ -143,17 +146,17 @@ function faceKey(char, ch) {
     return x.join('+') < y.join('+') ? -1 : 1;
   }));
 }
-// v5: 差し替えられるのは **カスタム4面（スロット2〜5）だけ**。固定2面は常に素の面
+// v6: 差し替えられるのは **カスタム3面（E.CUSTOM_SLOTS）だけ**。固定3面（属性×2＋✨）は常に素の面
 function eachPlacement(opts, fn) {
-  var L = opts.length, n = E.SLOTS_N - E.FIXED_N, total = Math.pow(L, n), i, t, ch;
+  var L = opts.length, n = E.CUSTOM_N, total = Math.pow(L, n), i, t, ch;
   for (var c = 0; c < total; c++) {
     ch = new Array(E.SLOTS_N); t = c;
-    for (i = 0; i < E.FIXED_N; i++) ch[i] = null;
-    for (i = 0; i < n; i++) { ch[E.FIXED_N + i] = opts[t % L]; t = Math.floor(t / L); }
+    for (i = 0; i < E.SLOTS_N; i++) ch[i] = null;
+    for (i = 0; i < n; i++) { ch[E.CUSTOM_SLOTS[i]] = opts[t % L]; t = Math.floor(t / L); }
     fn(ch);
   }
 }
-// ダイス1個ぶんの候補。上限（同エネ3面・✨1面）内で全列挙し、6面が同じになるものは畳む
+// ダイス1個ぶんの候補。上限（属性3面・他2面）内で全列挙し、6面が同じになるものは畳む
 function dieSets(char) {
   var opts = [null].concat(E.CHIP_ORDER), out = [], seen = {};
   eachPlacement(opts, function (ch) {
@@ -191,21 +194,25 @@ function invVec(char) {
   return E.CHIP_ORDER.map(function (k) { return inv[k]; });
 }
 function kindVec(ch) {
-  var v = [0, 0, 0, 0, 0], i;
-  for (i = E.FIXED_N; i < ch.length; i++) if (ch[i]) v[E.CHIP_ORDER.indexOf(ch[i])]++;
+  var v = E.CHIP_ORDER.map(function () { return 0; }), i, sl;
+  for (i = 0; i < E.CUSTOM_SLOTS.length; i++) {
+    sl = E.CUSTOM_SLOTS[i];
+    if (ch[sl]) v[E.CHIP_ORDER.indexOf(ch[sl])]++;
+  }
   return v;
 }
 // 面の集合ごとに { ch: 代表の置き方, vs: [その面を作れる使用ベクトル] }
 function bringDieGroups(char) {
   var inv = invVec(char), opts = [null].concat(E.CHIP_ORDER), map = {}, order = [];
   eachPlacement(opts, function (ch) {
-    var i, q;
-    for (i = E.FIXED_N; i < ch.length; i++) {
-      if (ch[i] && ch[i] === char.slots[i]) return;      // 「同じ面です」
+    var i, q, sl;
+    for (i = 0; i < E.CUSTOM_SLOTS.length; i++) {
+      sl = E.CUSTOM_SLOTS[i];
+      if (ch[sl] && ch[sl] === char.slots[sl]) return;   // 「同じ面です」
     }
     var v = kindVec(ch);
-    for (q = 0; q < 5; q++) if (v[q] > inv[q]) return;   // 種類ごとの在庫
-    if (!E.validateDie(char, ch).ok) return;             // 上限（同エネ3面・✨1面）
+    for (q = 0; q < inv.length; q++) if (v[q] > inv[q]) return;   // 種類ごとの在庫
+    if (!E.validateDie(char, ch).ok) return;             // 上限（属性3面・他2面）
     var fk = faceKey(char, ch);
     if (!map[fk]) { map[fk] = { ch: ch.slice(), vs: [] }; order.push(fk); }
     var sig = v.join('');
@@ -219,7 +226,7 @@ function bringDiceSets(char) {
   function fits(A, B, C) {
     for (var a = 0; a < A.length; a++) for (var b = 0; b < B.length; b++) for (var d = 0; d < C.length; d++) {
       var ok = true;
-      for (var q = 0; q < 5; q++) if (A[a][q] + B[b][q] + C[d][q] > inv[q]) { ok = false; break; }
+      for (var q = 0; q < inv.length; q++) if (A[a][q] + B[b][q] + C[d][q] > inv[q]) { ok = false; break; }
       if (ok) return true;
     }
     return false;
@@ -230,10 +237,11 @@ function bringDiceSets(char) {
   return { cands: G.length, sets: out };
 }
 
+// 表示は SLOT_ORDER（🔒固定3面 → カスタム3面）の順。[ ]＝固定 / ( )＝カスタムの素の面
 function dieLabel(char, ch) {
-  return ch.map(function (k, i) {
-    if (i < E.FIXED_N) return '[' + E.ENERGY[char.slots[i]].emoji + ']';
-    return k ? E.CHIPS[k].emoji : '(' + E.ENERGY[char.slots[i]].emoji + ')';
+  return E.SLOT_ORDER.map(function (i) {
+    if (E.isFixedSlot(i)) return '[' + E.ENERGY[char.slots[i]].emoji + ']';
+    return ch[i] ? E.CHIPS[ch[i]].emoji : '(' + E.ENERGY[char.slots[i]].emoji + ')';
   }).join('');
 }
 function chipsLabel(char, cs) {
@@ -294,11 +302,11 @@ function searchMoves(MS, NS, TOP, rng, quiet) {
   return topMoves;
 }
 
-// 初期チップ6枚（自分の属性×2＋他4種×1枚）の最良構成 vs 初期構成
-var BRING_LABEL = '属性×2＋他4種×1（計6枚）';
+// 手持ちチップ12枚（属性3＋他3種で9）の最良構成 vs 既定構成
+var BRING_LABEL = '属性3＋他3種で9（計12枚）';
 function bringSection(base, topMoves, N, NS, TOP, rng) {
-  console.log('\n## 初期チップ（' + BRING_LABEL + '）を積んだ最良構成 vs 初期構成（各 ' + N + ' 戦・探索 ' + NS + ' 戦）');
-  console.log('カスタム4面×3個＝12スロットへの置き方を、面の集合に畳んで**在庫で組める並びを全列挙**する');
+  console.log('\n## 手持ちチップ（' + BRING_LABEL + '）から9枠を選んだ最良構成 vs 既定構成（各 ' + N + ' 戦・探索 ' + NS + ' 戦）');
+  console.log('カスタム3面×3個＝9スロットへの置き方を、面の集合に畳んで**在庫で組める並びを全列挙**する');
   console.log('\n| キャラ | 1個ぶんの面の集合 | 在庫内で組める3個の並び |');
   console.log('|---|---|---|');
   var topDice = {};
@@ -309,11 +317,11 @@ function bringSection(base, topMoves, N, NS, TOP, rng) {
     topDice[c.id] = res.slice(0, TOP);
     console.log('| ' + c.emoji + c.name + ' | ' + B.cands + ' | ' + B.sets.length + ' |');
   });
-  var w = pinch('### 初期チップ6枚＋技セットも自由（上位' + TOP + 'ダイス × 上位' + TOP + '技セット）',
-    base, topDice, topMoves, N, rng, 0.85);
+  var w = pinch('### 手持ち12枚＋技セットも自由（上位' + TOP + 'ダイス × 上位' + TOP + '技セット）',
+    base, topDice, topMoves, N, rng, GOAL);
   var star = {};
   CH.forEach(function (c) { star[c.id] = [{ mi: c.star.slice(), w: 0 }]; });
-  pinch('### 参考: 技は★4技のまま・初期チップだけ', base, topDice, star, N, rng, 0.85);
+  pinch('### 参考: 技は★4技のまま・手持ち12枚だけ', base, topDice, star, N, rng, GOAL);
   return w;
 }
 
@@ -323,11 +331,11 @@ function runV3() {
   var NS = Math.max(60, Math.floor(N / 10));   // 探索用（粗く回す）
   var TOP = 10;
 
-  console.log('# 醸しコロ v5 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
+  console.log('# 醸しコロ v6 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
   console.log('属性: ' + ATTR_LINE() + '／' + ADVTAG);
-  console.log('エネコロは左・中・右の3個。**固定2面（属性×2）＋カスタム4面**（差し替え先は 4×3＝12スロット）\n');
+  console.log('エネコロは左・中・右の3個。**固定3面（属性×2＋✨）＋カスタム3面**（差し替え先は 3×3＝9スロット）\n');
 
-  console.log('## 1. 初期構成（★4技・素の面）の総合勝率');
+  console.log('## 1. 既定構成（★4技・素の面）の総合勝率');
   var base = baseWins(N, rng, false);
 
   console.log('\n## 2. 技セット総当たり（C(7,4)=35 × 6体・素の面）');
@@ -350,24 +358,22 @@ function runV3() {
       chipsLabel(c, res[0].ch) + ' | ' + pc(res[0].w) + ' |');
   });
 
-  pinch('## 4. 上限内の最強構成 vs 初期構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）',
-    base, topDice, topMoves, N, rng, 0.85);
+  pinch('## 4. 上限内の最強構成 vs 既定構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）',
+    base, topDice, topMoves, N, rng, GOAL);
 
-  console.log('\n## 5. ドロップ期待値（1周＝6勝。相手6体は泡3・香3で固定）');
+  console.log('\n## 5. ドロップ期待値（1周＝6勝。相手6体は泡3・香3で固定。v6でレア枠は廃止）');
   var exp = {};
   E.CHIP_ORDER.forEach(function (k) { exp[k] = 0; });
   CH.forEach(function (c) {
     var tbl = E.DROP[E.typeKey(c)];
     tbl.forEach(function (k) { exp[k] += 1 / 6; });
   });
-  var rareTotal = 2; // 3勝目・6勝目
-  E.RARE.forEach(function (k) { exp[k] += rareTotal / E.RARE.length; });
   console.log('| チップ | 1周でもらえる期待枚数 |');
   console.log('|---|---|');
   E.CHIP_ORDER.forEach(function (k) {
     console.log('| ' + E.CHIPS[k].emoji + ' | ' + exp[k].toFixed(2) + ' |');
   });
-  console.log('- 1周で 通常6枚＋レア' + rareTotal + '枚。✨は1個に1面までなので、どの個も6面をレアで埋めることはできない');
+  console.log('- 1周で6枚（4種のどれか）。✨は全ダイスの固定面にあるので配られない');
 
   bringSection(base, topMoves, N, NS, TOP, rng);
 }
