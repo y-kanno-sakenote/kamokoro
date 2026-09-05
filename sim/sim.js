@@ -1,8 +1,9 @@
-// 醸しコロ 実測（v6: 属性制・固定3面（属性2＋✨1）＋カスタム3面・属性3すくみ）
+// 醸しコロ 実測（v7: しずく廃止・3すくみは「有利側が先攻」）
 //  回帰（既定）: 21組×先攻後攻＝42通りを既定2000戦。既定構成（★4技・素の面）＋6体の総合勝率
-//               → 既定の6面は v5 と同じ多重集合・同じ並びなので、**v5の回帰と1戦単位で一致する**
+//               → 表は42通りぜんぶ出すが、3すくみONのときは**ルール上あり得る先攻**（属性の有利側／
+//                 ミラーは両方）だけを「成立」とし、総合勝率・レンジ・目標未達は成立ぶんで数える
 //  --v3        : 技セット総当たり・ダイス総当たり・上限内最強 vs 既定・ドロップ期待値・手持ちチップの最良
-//  --noadv     : 属性3すくみを切って測る（engine の切り替えフラグ。既定はON）
+//  --noadv     : 3すくみを切って測る（engine の切り替えフラグ。既定はON）。OFF＝先攻は全組ランダム
 // 使い方: node sim/sim.js [回数] [--v3] [--noadv]
 'use strict';
 var path = require('path');
@@ -15,7 +16,7 @@ var BRING_ONLY = process.argv.indexOf('--bring') >= 0 && !V3;
 // --noadv : 属性3すくみOFF（有利ボーナスを無効に）。ON/OFF 両方を測るための切り替え
 var NOADV = process.argv.indexOf('--noadv') >= 0;
 E.setTypeAdv(!NOADV);
-var ADVTAG = E.typeAdvOn() ? '3すくみON（有利+' + E.ADV_BONUS + '）' : '3すくみOFF';
+var ADVTAG = E.typeAdvOn() ? '3すくみON（有利側が先攻）' : '3すくみOFF（先攻ランダム）';
 var CH = E.CHARS;
 // 「上限内最強 vs 既定」の目標（2026-09-05 裁定で 85%→90%）
 var GOAL = 0.90;
@@ -55,29 +56,40 @@ function runV2() {
           dec += r.declared; suc += r.success;
           if (r.timeout) timeouts++;
         }
-        totDeclared += dec; totSuccess += suc;
-        acc[CH[i].id] += winA / N; cnt[CH[i].id]++;
-        acc[CH[j].id] += 1 - winA / N; cnt[CH[j].id]++;
+        // v7: 3すくみONだと先攻は属性で決まる。この (組, 先攻) がルール上成立するか
+        var mirror = i === j;
+        var legal = !E.typeAdvOn() || mirror ||
+          (f === 0 ? E.hasAdv(CH[i].attr, CH[j].attr) : E.hasAdv(CH[j].attr, CH[i].attr));
+        if (legal) {
+          totDeclared += dec; totSuccess += suc;
+          acc[CH[i].id] += winA / N; cnt[CH[i].id]++;
+          acc[CH[j].id] += 1 - winA / N; cnt[CH[j].id]++;
+        }
         rows.push({
-          a: CH[i], b: CH[j], first: f, mirror: i === j,
+          a: CH[i], b: CH[j], first: f, mirror: mirror, legal: legal,
           winA: winA / N, turns: turnSum / N, succ: suc / dec, timeouts: timeouts
         });
       }
     }
   }
 
-  console.log('# 醸しコロ v6 既定構成（★4技・素の面）のバランス実測（各 ' + N + ' 戦 / 全 ' + rows.length + ' 通り）');
-  console.log('属性: ' + ATTR_LINE() + '／' + ADVTAG + '\n');
-  console.log('| 組み合わせ | 先攻 | 先手側の勝率 | Aの勝率 | 平均手番(片側) | 宣言成功率 |');
-  console.log('|---|---|---|---|---|---|');
+  var legalRows = rows.filter(function (r) { return r.legal; });
+  console.log('# 醸しコロ v7 既定構成（★4技・素の面）のバランス実測（各 ' + N + ' 戦 / 全 ' + rows.length + ' 通り）');
+  console.log('属性: ' + ATTR_LINE() + '／' + ADVTAG);
+  console.log('先攻の決まり方: ' + (E.typeAdvOn()
+    ? '**属性の有利側が先攻**（ミラーはランダム）。表は42通り出すが、集計は**成立 ' + legalRows.length + ' 通り**だけ'
+    : '**全組ランダム**（42通りすべて成立）') + '\n');
+  console.log('| 組み合わせ | 先攻 | 成立 | 先手側の勝率 | Aの勝率 | 平均手番(片側) | 宣言成功率 |');
+  console.log('|---|---|---|---|---|---|---|');
   rows.forEach(function (r) {
     var firstName = r.first === 0 ? r.a.name : r.b.name;
     var firstWin = r.first === 0 ? r.winA : 1 - r.winA;
+    var mark = r.legal ? (r.mirror || !E.typeAdvOn() ? 'ランダム' : '相性') : '—';
     console.log('| ' + r.a.emoji + r.a.name + ' vs ' + r.b.emoji + r.b.name + ' | ' + firstName +
-      ' | ' + pc(firstWin) + ' | ' + pc(r.winA) + ' | ' + r.turns.toFixed(1) + ' | ' + pc(r.succ) + ' |');
+      ' | ' + mark + ' | ' + pc(firstWin) + ' | ' + pc(r.winA) + ' | ' + r.turns.toFixed(1) + ' | ' + pc(r.succ) + ' |');
   });
 
-  console.log('\n## 6体の総合勝率（42通りの平均・属性つき）');
+  console.log('\n## 6体の総合勝率（成立ぶんの平均・属性つき）');
   console.log('| キャラ | 属性 | 総合勝率 |');
   console.log('|---|---|---|');
   CH.forEach(function (c) {
@@ -85,17 +97,18 @@ function runV2() {
   });
 
   console.log('\n## 全体');
-  console.log('- 宣言技の成功率（全体）: ' + pc(totSuccess / totDeclared) + '（しずく率 ' + pc(1 - totSuccess / totDeclared) + '）');
-  var allTurns = rows.reduce(function (s, r) { return s + r.turns; }, 0) / rows.length;
-  console.log('- 平均手番（片側・全組平均）: ' + allTurns.toFixed(1));
-  var ws = rows.map(function (r) { return r.winA; });
+  console.log('- 宣言技の成功率（全体）: ' + pc(totSuccess / totDeclared) + '（失敗率 ' + pc(1 - totSuccess / totDeclared) + '）');
+  var allTurns = legalRows.reduce(function (s, r) { return s + r.turns; }, 0) / legalRows.length;
+  console.log('- 平均手番（片側・成立ぶんの平均）: ' + allTurns.toFixed(1));
+  var ws = legalRows.map(function (r) { return r.winA; });
   console.log('- 勝率レンジ: ' + pc(Math.min.apply(null, ws)) + ' 〜 ' + pc(Math.max.apply(null, ws)));
 
   // ---- 目標未達だけ列挙（spec_v5.md「目標帯」: OFF=35〜65% / ON=30〜70%） ----
   var LO = E.typeAdvOn() ? 0.30 : 0.35, HI = E.typeAdvOn() ? 0.70 : 0.65;
   var ng = [];
-  rows.forEach(function (r) {
-    var label = r.a.name + ' vs ' + r.b.name + '（先攻: ' + (r.first === 0 ? r.a.name : r.b.name) + (r.mirror ? '・ミラー' : '') + '）';
+  legalRows.forEach(function (r) {
+    var label = r.a.name + ' vs ' + r.b.name + '（先攻: ' + (r.first === 0 ? r.a.name : r.b.name) +
+      (r.mirror ? '・ミラー' : (E.typeAdvOn() ? '・相性' : '')) + '）';
     if (r.winA < LO || r.winA > HI) ng.push('勝率 ' + pc(r.winA) + '（' + (LO * 100) + '〜' + (HI * 100) + '%外）: ' + label);
     if (r.turns < 6 || r.turns > 10) ng.push('平均手番 ' + r.turns.toFixed(1) + '（6〜10外）: ' + label);
     if (r.succ < 0.40 || r.succ > 0.70) ng.push('成功率 ' + pc(r.succ) + '（40〜70%外）: ' + label);
@@ -115,11 +128,12 @@ function ATTR_LINE() {
   return E.ATTR_ORDER.map(function (a) {
     var ns = CH.filter(function (c) { return c.attr === a; }).map(function (c) { return c.name; });
     return E.attrLabel(a) + '=' + ns.join('・');
-  }).join(' / ') + '（3すくみ 麹→米→水→麹・有利+' + E.ADV_BONUS + '）';
+  }).join(' / ') + '（3すくみ 麹→米→水→麹・有利側が先攻）';
 }
 
 // =====================================================================
-// --v3（測定項目）。相手は常に CPU＝★4技・素の面。先攻はランダム
+// --v3（測定項目）。相手は常に CPU＝★4技・素の面。
+// 先攻は engine が決める（ONなら属性の有利側・ミラーはランダム／OFFなら全組ランダム）
 // =====================================================================
 
 function runVsAll(charId, load, n, rng) {
@@ -336,7 +350,7 @@ function runV3() {
   var NS = Math.max(60, Math.floor(N / 10));   // 探索用（粗く回す）
   var TOP = 10;
 
-  console.log('# 醸しコロ v6 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
+  console.log('# 醸しコロ v7 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
   console.log('属性: ' + ATTR_LINE() + '／' + ADVTAG);
   console.log('エネコロは左・中・右の3個。**固定3面（属性×2＋✨）＋カスタム3面**（差し替え先は 3×3＝9スロット）\n');
 
@@ -366,7 +380,7 @@ function runV3() {
   pinch('## 4. 上限内の最強構成 vs 既定構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）',
     base, topDice, topMoves, N, rng, GOAL);
 
-  console.log('\n## 5. ドロップ期待値（1周＝6勝。v7で4種の均等 1/4・相手タイプ寄りは廃止）');
+  console.log('\n## 5. ドロップ期待値（1周＝6勝。4種の均等 1/4・相手タイプ寄りは廃止）');
   var exp = {};
   E.CHIP_ORDER.forEach(function (k) { exp[k] = LAP_WINS / E.DROP.length; });
   console.log('| チップ | 1周でもらえる期待枚数 |');

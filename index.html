@@ -629,7 +629,7 @@
     // CPU周回強化（段2）は実測で効果が無く廃止（spec_v3.md §3.1）。CPUは常に★4技・素の面
     st = E.newState(myId, foeId, null, loadOf(myId), null);
     myF = st.chars[ME]; foeF = st.chars[FOE];
-    logs = []; busy = (st.turn === FOE);
+    logs = [firstLine()]; busy = (st.turn === FOE);
     [ME, FOE].forEach(function(s){
       res(s).textContent = '';
       lb(s).textContent = '';
@@ -783,6 +783,12 @@
     });
   }
 
+  // v7: 先攻は属性の3すくみ（有利側が先攻）。ミラーと3すくみOFFはランダム
+  function firstLine(){
+    var f = st.chars[st.first];
+    return '🎲 ' + f.emoji + f.name + 'の先攻（' + (st.firstReason === 'adv' ? '相性' : 'ランダム') + '）';
+  }
+
   function drawLog(){
     $('log').innerHTML = logs.slice(-3).map(function(t){ return '<div>' + t + '</div>'; }).join('');
   }
@@ -818,14 +824,13 @@
   function describe(side, r){
     var mv = r.move, s = '';
     if (!r.success) {
-      s = 'しずく… ' + r.damage + 'ダメージ';
+      s = 'そろわず…';
       if (r.selfDamage) s += '　ロマンで自分に' + r.selfDamage;
       return s;
     }
     if (mv.kind === 'heal') s = mv.name + '！ ' + (r.heal ? r.heal + '回復' : 'まんたん！');
     else if (mv.kind === 'guard') s = mv.name + '！ つぎ半減';
     else s = mv.name + '！ ' + r.damage + 'ダメージ';
-    if (r.adv) s += '　有利+' + E.ADV_BONUS;
     if (r.halved) s += '（半減）';
     if (r.orientHit) {
       s += '　' + oKan(r.orient) + 'ぴったり！';

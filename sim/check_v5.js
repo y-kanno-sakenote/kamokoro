@@ -33,7 +33,7 @@ if (file) {
 function mrng(seed) { var s = seed >>> 0; return function () { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
 function pc(x) { return (x * 100).toFixed(1); }
 
-var tag = (E.typeAdvOn() ? '3すくみON(+' + E.ADV_BONUS + ')' : '3すくみOFF') + ' 帯' + (LO * 100) + '〜' + (HI * 100);
+var tag = (E.typeAdvOn() ? '3すくみON(有利側が先攻)' : '3すくみOFF(先攻ランダム)') + ' 帯' + (LO * 100) + '〜' + (HI * 100);
 console.log('# ' + (file || '（現行 engine.js）') + ' / ' + tag + ' / ' + n + '戦 × seed' + seeds.length);
 
 var sumOv = CH.map(function () { return 0; });

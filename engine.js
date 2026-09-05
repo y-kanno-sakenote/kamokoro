@@ -1,8 +1,12 @@
-// 醸しコロ ロジック層 v6（属性制・固定3面＋カスタム3面・属性3すくみ・ブラウザ / node 両用）
+// 醸しコロ ロジック層 v7（属性制・固定3面＋カスタム3面・3すくみ＝先攻決め・ブラウザ / node 両用）
 // 数値の正は docs/characters.md、ルールの正は docs/spec_v5.md（v6の本文。v2部分は docs/spec.md）。ここでは勝手に調整しない。
 // v6（2026-09-05 ユーザー裁定）: 固定は **属性×2 ＋ ✨×1 の3面**。カスタムは残り3面（他属性2＋🔥）。
 //   ✨は全ダイスに必ず1面あるので **✨チップとレア枠は廃止**（チップは🌾🍚💧🔥の4種だけ）。
 //   素の6面の並びは v5 のまま（固定は slots[0],[1],[5]）＝既定構成の回帰が v5 と1戦単位で一致する。
+// v7（2026-09-05 ユーザー裁定・2点だけ）:
+//   ① **「しずく」を廃止**。技が揃わなければ何も起きない（相手に5ダメージを与えない）。
+//      失敗の代償は「前の手番の技は選べない」だけ。1801号のとくせい「ロマン」だけが失敗ペナルティとして残る。
+//   ② **3すくみの「有利側+2ダメージ」を廃止**し、**「有利側が先攻」**に置き換えた（ミラーはランダム）。
 (function (root, factory) {
   var api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -44,8 +48,9 @@
   // 3すくみ: **麹→米→水→麹**（麹が米を糖化する／米が水を吸う／水が麹を溶かす）
   // TYPE_ADV[攻める属性] = その属性が有利を取れる相手の属性
   var TYPE_ADV = { koji: 'rice', rice: 'water', water: 'koji' };
-  var ADV_BONUS = 2;      // 有利な側は「攻撃技の成功時ダメージ +2」（固定。倍率にしない。2026-09-05 実測で +5→+3→+2 と下げて確定）
-  var advOn = true;       // 既定ON。sim で ON/OFF 両方を測るための切り替え
+  // v7（2026-09-05・ユーザー裁定）: 有利側の「+2ダメージ」は**廃止**。3すくみは
+  // **「有利な側が先攻」** に置き換えた（ミラー＝同属性はランダム）。ダメージには一切効かない。
+  var advOn = true;       // 既定ON。OFFなら先攻は全組ランダム。sim は --noadv でOFF側を測る
   function setTypeAdv(on) { advOn = !!on; }
   function typeAdvOn() { return advOn; }
   function hasAdv(atkAttr, defAttr) { return TYPE_ADV[atkAttr] === defAttr; }
@@ -476,7 +481,16 @@
   function newState(charA, charB, rng, loadA, loadB) {
     var a = buildFighter(charA, loadA);
     var b = buildFighter(charB, loadB);
-    var first = rnd(rng) < 0.5 ? 0 : 1;
+    // v7: 先攻は**属性の3すくみ**で決まる（麹→米→水→麹の有利側が先攻）。
+    // ミラー（同属性）と、3すくみOFF（setTypeAdv(false)）のときは従来どおりランダム。
+    var first, firstReason;
+    if (advOn && a.attr !== b.attr) {
+      first = hasAdv(a.attr, b.attr) ? 0 : 1;
+      firstReason = 'adv';          // 相性で決まった
+    } else {
+      first = rnd(rng) < 0.5 ? 0 : 1;
+      firstReason = 'rng';          // ミラー or 3すくみOFF
+    }
     return {
       chars: [a, b],
       hp: [a.hp, b.hp],
@@ -486,6 +500,7 @@
       halveNext: [false, false],
       turnCount: [0, 0],
       first: first,
+      firstReason: firstReason,
       turn: first,
       over: false,
       winner: null
@@ -507,18 +522,11 @@
     return out;
   }
 
-  // 3すくみのボーナス（攻撃技・成功時のみ・固定+5）。フラグOFFなら0
-  function advBonus(state, side) {
-    if (!advOn) return 0;
-    return hasAdv(state.chars[side].attr, state.chars[1 - side].attr) ? ADV_BONUS : 0;
-  }
-
   // ---- CPU（期待ダメージ最大・前手番の技除外・HP30%以下で回復） -----------
   function cpuChoose(state, side) {
     var me = state.chars[side], foe = 1 - side;
     var n = energyCount(state, side);
     var avail = availableMoves(state, side);
-    var adv = advBonus(state, side);
     var i, mi, mv, best = avail[0], bestVal = -1;
     var canKill = false, healIdx = -1;
 
@@ -528,8 +536,8 @@
       var val = 0;
       if (mv.kind === 'atk') {
         var plus = mv.eff && mv.eff.plus ? mv.eff.plus : 0;
-        val = p * (mv.power + adv + orientProb(me, mv.hit) * plus);
-        if (mv.power + plus + adv >= state.hp[foe]) canKill = true;
+        val = p * (mv.power + orientProb(me, mv.hit) * plus);
+        if (mv.power + plus >= state.hp[foe]) canKill = true;
       } else {
         healIdx = mi;
       }
@@ -557,19 +565,17 @@
     var faces = rollEnergy(me, n, rng);
     var success = matchCost(mv.cost, faces);
     var hit = success && mv.hit.indexOf(orient) >= 0; // 当たり目効果は成功時のみ
-    var adv = (mv.kind === 'atk') ? advBonus(state, side) : 0;
 
     var r = {
       side: side, moveIdx: moveIdx, move: mv, n: n,
       orient: orient, faces: faces, success: success, orientHit: hit,
-      damage: 0, selfDamage: 0, heal: 0, guard: false, minus: false, halved: false, adv: false
+      damage: 0, selfDamage: 0, heal: 0, guard: false, minus: false, halved: false
     };
 
     var eff = mv.eff || {};
     if (success) {
       if (mv.kind === 'atk') {
-        var dmg = mv.power + (hit && eff.plus ? eff.plus : 0) + adv;
-        if (adv) r.adv = true;
+        var dmg = mv.power + (hit && eff.plus ? eff.plus : 0);
         r.damage = applyDamage(state, foe, dmg, r);
         if (hit && eff.self) r.selfDamage = eff.self;
         if (hit && eff.heal) r.heal = healSide(state, side, eff.heal);
@@ -582,8 +588,9 @@
         if (hit && eff.heal) r.heal = healSide(state, side, eff.heal);
       }
     } else {
-      // しずく（5ダメージ）。3すくみのボーナスは乗せない（攻撃技の成功時だけ）
-      r.damage = applyDamage(state, foe, 5, r);
+      // v7: 揃わなければ**何も起きない**（旧「しずく5ダメージ」は廃止）。
+      // 失敗の代償は「前の手番の技は選べない」だけ。唯一の失敗ペナルティが 1801号のとくせい「ロマン」。
+      // 失敗したことは r.success === false で分かる。
       if (me.ability && me.ability.failSelf) r.selfDamage = me.ability.failSelf;
     }
 
@@ -619,7 +626,10 @@
   function simulateBattle(charA, charB, rng, opts) {
     opts = opts || {};
     var st = newState(charA, charB, rng, opts.loadA, opts.loadB);
-    if (opts.first === 0 || opts.first === 1) { st.first = opts.first; st.turn = opts.first; }
+    if (opts.first === 0 || opts.first === 1) {
+      st.first = opts.first; st.turn = opts.first;
+      st.firstReason = 'forced';   // simの回帰で先攻を固定したとき
+    }
     var declared = [0, 0], succ = [0, 0], fail = [0, 0];
     var guard = 0, cap = opts.cap || 400;
     while (!st.over && guard++ < cap) {
@@ -637,7 +647,7 @@
       winner = ra === rb ? 0 : (ra > rb ? 0 : 1);
     }
     return {
-      winner: winner, first: st.first, timeout: timeout,
+      winner: winner, first: st.first, firstReason: st.firstReason, timeout: timeout,
       turns: declared,
       turnsPerSide: (declared[0] + declared[1]) / 2,
       declared: declared[0] + declared[1],
@@ -649,7 +659,7 @@
 
   return {
     CHARS: CHARS, ORIENT: ORIENT, ORIENT_ORDER: ORIENT_ORDER, ENERGY: ENERGY, WILD: WILD,
-    ATTR: ATTR, ATTR_ORDER: ATTR_ORDER, TYPE_ADV: TYPE_ADV, ADV_BONUS: ADV_BONUS,
+    ATTR: ATTR, ATTR_ORDER: ATTR_ORDER, TYPE_ADV: TYPE_ADV,
     attrLabel: attrLabel, hasAdv: hasAdv, setTypeAdv: setTypeAdv, typeAdvOn: typeAdvOn,
     isAttrMove: isAttrMove,
     CHIPS: CHIPS, CHIP_ORDER: CHIP_ORDER, GROUP: GROUP, DROP: DROP,
