@@ -486,6 +486,19 @@
 
   function rollDrop(rng) { return pick(DROP, rng); }
 
+  // v7.1（2026-09-06 裁定）: **1周クリア（6連勝）だけ、好きな1枚を追加でもらえる**。
+  // 通常ドロップ1枚に**追加**（クリア時は計2枚）。運任せのドロップに1回だけ「自分で選ぶ」瞬間を作り、
+  // ●●●●●● の6連勝そのものに意味を持たせるための報酬。選べるのはドロップと同じ4種。
+  var LAP_BONUS = DROP;
+
+  // 選んだ1枚を在庫（そのキャラの chips[charId]）に足す。不正なキーなら何もせず false。
+  // 保存は呼び出し側の責任（index.html の writeSave）。対戦の数値には一切影響しない。
+  function grantLapBonus(inv, key) {
+    if (!inv || LAP_BONUS.indexOf(key) < 0) return false;
+    inv[key] = (inv[key] || 0) + 1;
+    return true;
+  }
+
   // ---- 状態 ----------------------------------------------------------------
   function newState(charA, charB, rng, loadA, loadB) {
     var a = buildFighter(charA, loadA);
@@ -717,7 +730,7 @@
     getChar: getChar,
     buildDie: buildDie, buildEnergy: buildEnergy, buildFighter: buildFighter,
     faceEmoji: faceEmoji, facesSig: facesSig, diceSig: diceSig,
-    rollDrop: rollDrop,
+    rollDrop: rollDrop, LAP_BONUS: LAP_BONUS, grantLapBonus: grantLapBonus,
     rollChar: rollChar, rollEnergy: rollEnergy, matchCost: matchCost,
     successProb: successProb, orientProb: orientProb, hitLabel: hitLabel,
     newState: newState, energyCount: energyCount, energyIndices: energyIndices,
