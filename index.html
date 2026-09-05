@@ -288,14 +288,21 @@
 
   // ---------------- 保存（localStorage・1キーだけ） ----------------
   var SKEY = 'kamoshi-koro:v3';
-  var SVER = 6;   // v6: 固定3面（属性2＋✨1）＋カスタム3面・✨チップ廃止・初期チップ7〜8枚。旧版（v5以前）は読まずに初期化する
+  var SVER = 7;   // v7: チップ在庫を**キャラごと**に持つ（chips[charId] / granted[charId]）・ドロップは4種均等・初期配布は全キャラ8枚。旧版（v6以前）は読まずに初期化する
   var save = null;
 
+  function zeroChips(){
+    var o = {};
+    E.CHIP_ORDER.forEach(function(k){ o[k] = 0; });
+    return o;
+  }
   function freshSave(){
-    // 手持ちチップは「最初にキャラを選んだとき」に配る（枚数・内訳はキャラごと。engine.js の START_CHIPS が正）
-    var s = { v:SVER, chips:{}, dice:{}, moves:{}, run:null, granted:false };
-    E.CHIP_ORDER.forEach(function(k){ s.chips[k] = 0; });
+    // 手持ちチップは**キャラごとの在庫**。そのキャラを初めて選んだときに、そのキャラの分だけ配る
+    // （枚数・内訳は engine.js の START_CHIPS が正）。ドロップも「いま使っているキャラの在庫」に入る。
+    var s = { v:SVER, chips:{}, dice:{}, moves:{}, run:null, granted:{} };
     E.CHARS.forEach(function(c){
+      s.chips[c.id] = zeroChips();             // キャラ別の在庫（酵母を持ち替えると集め直し）
+      s.granted[c.id] = false;                 // 初期配布を配ったかもキャラ別
       s.dice[c.id] = E.normalizeChips(null);   // 3個 × 6スロット（既定は3個とも素の面＝空白ではない）
       s.moves[c.id] = c.star.slice();
     });
@@ -314,15 +321,16 @@
     return true;
   }
   function validSave(s){
-    if (!s || s.v !== SVER || !s.chips || !s.dice || !s.moves) return false;
-    if (typeof s.granted !== 'boolean') return false;
-    var i, ok = true;
-    for (i = 0; i < E.CHIP_ORDER.length; i++){
-      var n = s.chips[E.CHIP_ORDER[i]];
-      if (typeof n !== 'number' || !isFinite(n) || n < 0 || n % 1 !== 0) return false;
-    }
+    if (!s || s.v !== SVER || !s.chips || !s.dice || !s.moves || !s.granted) return false;
+    var ok = true;
     E.CHARS.forEach(function(c){
-      var d = s.dice[c.id], m = s.moves[c.id];
+      var d = s.dice[c.id], m = s.moves[c.id], inv = s.chips[c.id];
+      // 在庫はキャラごと（v7）。1つでも形が違えば丸ごと初期化する
+      if (!inv || typeof s.granted[c.id] !== 'boolean') { ok = false; return; }
+      for (var q2 = 0; q2 < E.CHIP_ORDER.length; q2++){
+        var n = inv[E.CHIP_ORDER[q2]];
+        if (typeof n !== 'number' || !isFinite(n) || n < 0 || n % 1 !== 0) { ok = false; return; }
+      }
       // 未知のチップキー（廃止された2エネ等の旧セーブ）はここで弾かず repairAllSlots に素の面へ戻させる
       if (!okDice(d)) { ok = false; return; }
       if (!Array.isArray(m) || m.length !== 4) { ok = false; return; }
@@ -358,7 +366,7 @@
       var r = E.repairSlots(c, s.dice[c.id]);
       if (r.removed.length){
         s.dice[c.id] = r.chips;
-        r.removed.forEach(function(k){ s.chips[k] = (s.chips[k] || 0) + 1; });
+        r.removed.forEach(function(k){ s.chips[c.id][k] = (s.chips[c.id][k] || 0) + 1; });   // 在庫はそのキャラのもの
       }
     });
   }
@@ -427,11 +435,11 @@
   }
 
   function chooseChar(id){
-    // 手持ちチップ（4種2枚ずつ＝8枚。6号だけ🍚1で7枚）。初回だけ・選ぶピッカーは作らない
-    if (!save.granted){
+    // 手持ちチップ（全キャラ4種2枚ずつ＝8枚）。**そのキャラを初めて選んだときに、そのキャラの在庫へ**。選ぶピッカーは作らない
+    if (!save.granted[id]){
       var g = E.startChips(id);
-      E.CHIP_ORDER.forEach(function(k){ save.chips[k] += g[k]; });
-      save.granted = true;
+      E.CHIP_ORDER.forEach(function(k){ save.chips[id][k] += g[k]; });
+      save.granted[id] = true;
       writeSave();
     }
     if (!save.run) save.run = { charId: id, rest: shuffled(), wins: 0, lap: 1 };
@@ -527,10 +535,10 @@
       bar.appendChild(row);
     });
 
-    // 在庫は「のこり/ぜんぶ」。9枠のうち何枠にチップを置いたかも1語で出す
-    var inv = $('prep-inv'), all = E.startChips(id);
+    // 在庫は「のこり/ぜんぶ」。**そのキャラの在庫だけ**を出す。9枠のうち何枠に置いたかも1語で
+    var inv = $('prep-inv');
     inv.innerHTML = E.CHIP_ORDER.map(function(k){
-      var n = save.chips[k];
+      var n = save.chips[id][k];
       return '<span class="'+(n?'':'z')+'">'+E.CHIPS[k].emoji+'<b>'+n+'</b><i>/'+
              (n + countPlaced(id, k))+'</i></span>';
     }).join('');
@@ -569,7 +577,7 @@
     var box = $('sheet-chips');
     box.innerHTML = '';
     E.CHIP_ORDER.forEach(function(k){
-      var n = save.chips[k], on = (cur === k);
+      var n = save.chips[id][k], on = (cur === k);
       // 上限（1個につき 属性3面・他のエネ2面）に触れる置き換えはグレーにして選ばせない。理由を短く出す
       var chk = on ? { ok: true } : E.canPlaceChip(prepChar, save.dice[id], die, slot, k);
       var disabled = (!n && !on) || !chk.ok;
@@ -586,14 +594,14 @@
   function closeSheet(){ $('sheet').classList.remove('on'); sheetDie = -1; sheetSlot = -1; }
   function setChip(k){
     var id = prepChar.id, cur = save.dice[id][sheetDie][sheetSlot];
-    if (cur) save.chips[cur]++;      // 付け替え: 外したぶんは在庫に戻る（在庫は3個で共通）
-    save.chips[k]--;
+    if (cur) save.chips[id][cur]++;      // 付け替え: 外したぶんは在庫に戻る（在庫は3個で共通・キャラごと）
+    save.chips[id][k]--;
     save.dice[id][sheetDie][sheetSlot] = k;
     closeSheet(); drawPrep();
   }
   $('sheet-off').onclick = function(){
     var id = prepChar.id, cur = save.dice[id][sheetDie][sheetSlot];
-    if (cur) { save.chips[cur]++; save.dice[id][sheetDie][sheetSlot] = null; }
+    if (cur) { save.chips[id][cur]++; save.dice[id][sheetDie][sheetSlot] = null; }
     closeSheet(); drawPrep();
   };
   $('sheet-close').onclick = closeSheet;
@@ -859,10 +867,10 @@
     var win = st.winner === ME;
     lastGot = [];
     if (win){
-      lastGot.push(E.rollDrop(foeF, null));   // v6: 勝つたびに🌾🍚💧🔥のどれか1枚だけ（レア枠は廃止）
+      lastGot.push(E.rollDrop(null));   // v7: 勝つたびに🌾🍚💧🔥のどれか1枚（4種均等・相手タイプ寄りは廃止）
       save.run.wins++;
       save.run.rest.shift();
-      lastGot.forEach(function(k){ save.chips[k]++; });
+      lastGot.forEach(function(k){ save.chips[save.run.charId][k]++; });   // いま使っているキャラの在庫へ
     } else {
       save.run = null;                                            // 負けたらその周は終了
     }

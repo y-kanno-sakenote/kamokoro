@@ -61,13 +61,14 @@
   };
 
   // 開始時のチップ（v6 / 2026-09-05 実測で確定。sim/out/chips_v6.md）
-  // **選ばせない**。新しいセーブで最初にキャラを選んだときに自動で在庫に入れるだけ。
-  // 内訳は **4種を2枚ずつ＝8枚**。強い型は「同じ面の3個そろえ」で、1種につき3枚要る。
-  // **どの種類も2枚まで**にすると 2個までしか揃わず、3個目の1枚は周回のドロップで拾うことになる。
-  // 例外は6号だけ。🌾2🍚2 だと🌾🍚型が3個そろって手持ち最良が 80.1% に届くので **🍚は1枚**（7枚）。
-  // 置ける枠は 3面×3個＝9 なので配布は必ず枠より少ない＝空いた枠は素の面のまま成立する。
+  // **選ばせない**。**そのキャラを初めて選んだときに、そのキャラの在庫にだけ**自動で入る（キャラごと初回のみ）。
+  // 内訳は **全キャラ 4種を2枚ずつ＝8枚**（2026-09-05 裁定でキャラ差を廃止）。
+  // 強い型は「同じ面の3個そろえ」で1種につき3枚要る。**どの種類も2枚まで**なら2個までしか揃わず、
+  // 3個目の1枚は周回のドロップで拾うことになる。置ける枠は 3面×3個＝9 なので配布は必ず枠より少ない。
+  // 旧v6では6号だけ🍚1枚（計7枚）にしていたが、6号の手持ち最良が 80.1〜80.3% と目標帯（75〜80%）を
+  // 0.1〜0.3pt 超えるだけなので**誤差として受け入れ、全キャラ8枚に揃えた**（キャラごとの例外を持たない方が説明が短い）。
   var START_CHIPS = {
-    k6:    { rice: 2, koji: 1, water: 2, heat: 2 },   // 🌾米。🍚だけ1枚（🌾🍚型を3個そろえさせない）
+    k6:    { rice: 2, koji: 2, water: 2, heat: 2 },   // 🌾米
     k7:    { rice: 2, koji: 2, water: 2, heat: 2 },   // 🍚麹
     k9:    { rice: 2, koji: 2, water: 2, heat: 2 },   // 💧水
     k10:   { rice: 2, koji: 2, water: 2, heat: 2 },   // 🌾米
@@ -463,15 +464,13 @@
   }
 
   // ---- 蔵めぐりの報酬 ------------------------------------------------------
-  // v6: 勝つたびに🌾🍚💧🔥のどれか1枚だけ（**3勝ごとのレア枠は廃止**。✨チップが無くなったため）。
-  // 表の中身は v5 から据え置き＝倒した相手のタイプ寄りが50%（泡→🍚 / 香→💧）。
-  var DROP = {
-    awa:   ['koji', 'koji', 'koji', 'rice', 'water', 'heat'],
-    kaori: ['water', 'water', 'water', 'rice', 'koji', 'heat']
-  };
+  // v6（2026-09-05 裁定）: 勝つたびに🌾🍚💧🔥のどれか1枚だけ。**4種の均等 1/4**。
+  // 旧版は「倒した相手のタイプ（🫧泡→🍚 / 🌸香→💧）寄りが50%」だったが、
+  // タイプは戦闘の相性を持たず（相性は属性）、相手の出る順もランダムでプレイヤーが寄りを活かせないため廃止した。
+  // ドロップは「いま使っているキャラの在庫」に入る（在庫はキャラごと）。
+  var DROP = ['rice', 'koji', 'water', 'heat'];
 
-  function typeKey(char) { return char.type.indexOf('泡') >= 0 ? 'awa' : 'kaori'; }
-  function rollDrop(foeChar, rng) { return pick(DROP[typeKey(foeChar)], rng); }
+  function rollDrop(rng) { return pick(DROP, rng); }
 
   // ---- 状態 ----------------------------------------------------------------
   function newState(charA, charB, rng, loadA, loadB) {
@@ -666,7 +665,7 @@
     countSlots: countSlots, slotFace: slotFace, normalizeChips: normalizeChips,
     getChar: getChar,
     buildDie: buildDie, buildEnergy: buildEnergy, buildFighter: buildFighter,
-    faceEmoji: faceEmoji, facesSig: facesSig, diceSig: diceSig, typeKey: typeKey,
+    faceEmoji: faceEmoji, facesSig: facesSig, diceSig: diceSig,
     rollDrop: rollDrop,
     rollChar: rollChar, rollEnergy: rollEnergy, matchCost: matchCost,
     successProb: successProb, orientProb: orientProb, hitLabel: hitLabel,

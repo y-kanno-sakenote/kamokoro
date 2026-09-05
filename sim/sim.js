@@ -19,6 +19,7 @@ var ADVTAG = E.typeAdvOn() ? '3すくみON（有利+' + E.ADV_BONUS + '）' : '3
 var CH = E.CHARS;
 // 「上限内最強 vs 既定」の目標（2026-09-05 裁定で 85%→90%）
 var GOAL = 0.90;
+var LAP_WINS = 6;   // 1周で倒す相手の数（ドロップ期待値に使う）
 
 // 乱数（seed固定で再現できるようにする）
 function makeRng(seed) {
@@ -365,19 +366,16 @@ function runV3() {
   pinch('## 4. 上限内の最強構成 vs 既定構成（上位' + TOP + 'ダイス × 上位' + TOP + '技セット・各 ' + N + ' 戦）',
     base, topDice, topMoves, N, rng, GOAL);
 
-  console.log('\n## 5. ドロップ期待値（1周＝6勝。相手6体は泡3・香3で固定。v6でレア枠は廃止）');
+  console.log('\n## 5. ドロップ期待値（1周＝6勝。v7で4種の均等 1/4・相手タイプ寄りは廃止）');
   var exp = {};
-  E.CHIP_ORDER.forEach(function (k) { exp[k] = 0; });
-  CH.forEach(function (c) {
-    var tbl = E.DROP[E.typeKey(c)];
-    tbl.forEach(function (k) { exp[k] += 1 / 6; });
-  });
+  E.CHIP_ORDER.forEach(function (k) { exp[k] = LAP_WINS / E.DROP.length; });
   console.log('| チップ | 1周でもらえる期待枚数 |');
   console.log('|---|---|');
   E.CHIP_ORDER.forEach(function (k) {
     console.log('| ' + E.CHIPS[k].emoji + ' | ' + exp[k].toFixed(2) + ' |');
   });
-  console.log('- 1周で6枚（4種のどれか）。✨は全ダイスの固定面にあるので配られない');
+  console.log('- 1周で6枚（4種のどれか・均等）。✨は全ダイスの固定面にあるので配られない');
+  console.log('- チップ在庫は**キャラごと**なので、酵母を持ち替えると集め直しになる');
 
   bringSection(base, topMoves, N, NS, TOP, rng);
 }
