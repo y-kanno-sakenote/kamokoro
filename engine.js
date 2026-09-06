@@ -116,8 +116,8 @@
         { name: 'まだまだ',   g: 'st', cost: ['water'],                  kind: 'atk',  power: 10, hit: ['u', 'y', 'g'],      eff: { heal: 5 } },   // サブ
         { name: 'あかぞめ',   g: 'md', cost: ['rice', 'koji'],           kind: 'atk',  power: 25, hit: ['a', 'u'],           eff: { minus: 1 } },
         { name: 'ぐつぐつ',   g: 'md', cost: ['rice', 'heat'],           kind: 'atk',  power: 20, hit: ['u', 'y'],           eff: { plus: 10 } },
-        { name: '秋田の底力', g: 'rm', cost: ['rice', 'rice', 'koji'],   kind: 'atk',  power: 35, hit: ['a'],                eff: { plus: 10 } },
-        { name: 'おおむかし', g: 'rm', cost: ['rice', 'koji', 'water'],  kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 10 } },
+        { name: '秋田の底力', g: 'rm', cost: ['rice', 'rice', 'koji'],   kind: 'atk',  power: 60, hit: ['a'],                eff: { plus: 10 } },
+        { name: 'おおむかし', g: 'rm', cost: ['rice', 'koji', 'water'],  kind: 'atk',  power: 65, hit: ['g'],                eff: { plus: 10 } },
         { name: 'ご長寿',     g: 'sp', cost: ['koji', 'heat'],           kind: 'heal', power: 20, hit: ['s', 'a'],           eff: { healPlus: 10 } } // サブ
       ]
     },
@@ -131,8 +131,8 @@
         { name: 'そつなく',   g: 'st', cost: ['water'],                  kind: 'atk',   power: 10, hit: ['y', 'g'],           eff: { plus: 5 } },  // サブ
         { name: '高泡',       g: 'md', cost: ['koji', 'rice'],           kind: 'atk',   power: 20, hit: ['s', 'a'],           eff: { plus: 10 } },
         { name: 'ふきこぼれ', g: 'md', cost: ['koji', 'koji'],           kind: 'atk',   power: 20, hit: ['s', 'y'],           eff: { minus: 1 } },
-        { name: '真澄の一撃', g: 'rm', cost: ['koji', 'koji', 'water'],  kind: 'atk',   power: 35, hit: ['g'],                eff: { self: 10 } },
-        { name: 'あわだらけ', g: 'rm', cost: ['koji', 'rice', 'heat'],   kind: 'atk',   power: 40, hit: ['y'],                eff: { plus: 10 } },
+        { name: '真澄の一撃', g: 'rm', cost: ['koji', 'koji', 'water'],  kind: 'atk',   power: 60, hit: ['g'],                eff: { self: 10 } },
+        { name: 'あわだらけ', g: 'rm', cost: ['koji', 'rice', 'heat'],   kind: 'atk',   power: 65, hit: ['y'],                eff: { plus: 10 } },
         { name: 'きじゅん',   g: 'sp', cost: ['water', 'heat'],          kind: 'guard', power: 0,  hit: ['s', 'g'],           eff: { heal: 10 } }  // サブ
       ]
     },
@@ -146,8 +146,8 @@
         { name: 'ひとはだ',     g: 'st', cost: ['heat'],                     kind: 'atk',  power: 10, hit: ['s', 'a'],           eff: { plus: 5 } },  // サブ
         { name: '野白式',       g: 'md', cost: ['water', 'heat'],            kind: 'atk',  power: 25, hit: ['a', 'y'],           eff: { plus: 5 } },
         { name: 'ねかせる',     g: 'md', cost: ['water', 'rice'],            kind: 'atk',  power: 20, hit: ['s', 'g'],           eff: { guard: true } },
-        { name: '熊本の華',     g: 'rm', cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 35, hit: ['y'],                eff: { minus: 1 } },
-        { name: 'おおころがり', g: 'rm', cost: ['water', 'water', 'koji'],   kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 15 } },
+        { name: '熊本の華',     g: 'rm', cost: ['water', 'water', 'heat'],   kind: 'atk',  power: 60, hit: ['y'],                eff: { minus: 1 } },
+        { name: 'おおころがり', g: 'rm', cost: ['water', 'water', 'koji'],   kind: 'atk',  power: 65, hit: ['g'],                eff: { plus: 15 } },
         { name: '低温じっくり', g: 'sp', cost: ['koji', 'heat'],             kind: 'heal', power: 35, hit: ['s', 'y'],           eff: { healPlus: 10 } } // サブ
       ]
     },
@@ -161,8 +161,8 @@
         { name: 'つらら',       g: 'st', cost: ['water'],                   kind: 'atk',  power: 10, hit: ['a', 'u', 'y'],      eff: { plus: 5 } },  // サブ
         { name: '雪どけ',       g: 'md', cost: ['rice', 'water'],           kind: 'atk',  power: 20, hit: ['s', 'a'],           eff: { heal: 5 } },
         { name: 'ゆきかき',     g: 'md', cost: ['rice', 'heat'],            kind: 'atk',  power: 20, hit: ['u', 'y'],           eff: { plus: 10 } },
-        { name: '東北の底冷え', g: 'rm', cost: ['rice', 'rice', 'heat'],    kind: 'atk',  power: 35, hit: ['a'],                eff: { minus: 1 } },
-        { name: 'おおふぶき',   g: 'rm', cost: ['rice', 'koji', 'heat'],    kind: 'atk',  power: 40, hit: ['s'],                eff: { plus: 10 } },
+        { name: '東北の底冷え', g: 'rm', cost: ['rice', 'rice', 'heat'],    kind: 'atk',  power: 60, hit: ['a'],                eff: { minus: 1 } },
+        { name: 'おおふぶき',   g: 'rm', cost: ['rice', 'koji', 'heat'],    kind: 'atk',  power: 65, hit: ['s'],                eff: { plus: 10 } },
         { name: '冬ごもり',     g: 'sp', cost: ['koji', 'heat'],            kind: 'heal', power: 20, hit: ['a', 'u'],           eff: { healPlus: 10 } } // サブ
       ]
     },
@@ -176,8 +176,8 @@
         { name: 'ひとやすみ', g: 'st', cost: ['rice'],                    kind: 'atk',  power: 10, hit: ['s', 'a', 'y'],      eff: { heal: 5 } },  // サブ
         { name: '金沢香',     g: 'md', cost: ['koji', 'heat'],            kind: 'atk',  power: 25, hit: ['s', 'a'],           eff: { plus: 15 } }, // サブ
         { name: 'さらり',     g: 'md', cost: ['water', 'heat'],           kind: 'atk',  power: 20, hit: ['a', 'y'],           eff: { minus: 1 } },
-        { name: '酸なしの美', g: 'rm', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 30, hit: ['y'],                eff: { plus: 10 } },
-        { name: 'おおみず',   g: 'rm', cost: ['water', 'water', 'heat'],  kind: 'atk',  power: 40, hit: ['a'],                eff: { plus: 10 } },
+        { name: '酸なしの美', g: 'rm', cost: ['water', 'water', 'koji'],  kind: 'atk',  power: 55, hit: ['y'],                eff: { plus: 10 } },
+        { name: 'おおみず',   g: 'rm', cost: ['water', 'water', 'heat'],  kind: 'atk',  power: 65, hit: ['a'],                eff: { plus: 10 } },
         { name: '北陸の水',   g: 'sp', cost: ['water', 'heat'],           kind: 'heal', power: 20, hit: ['y', 'g'],           eff: { healPlus: 5 } }
       ]
     },
@@ -192,8 +192,8 @@
         { name: 'よくばり',         g: 'st', cost: ['rice'],                   kind: 'atk',  power: 10, hit: ['a', 'y'],           eff: { plus: 5 } },  // サブ
         { name: 'ハイブリッド',     g: 'md', cost: ['koji', 'water'],          kind: 'atk',  power: 30, hit: ['y', 'g'],           eff: { plus: 5 } },
         { name: 'ふんばる',         g: 'md', cost: ['koji', 'koji'],           kind: 'atk',  power: 20, hit: ['y'],                eff: { guard: true } },
-        { name: 'りんご香バースト', g: 'rm', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 40, hit: ['g'],                eff: { plus: 10 } },
-        { name: 'ぜんぶだす',       g: 'rm', cost: ['koji', 'heat', 'heat'],   kind: 'atk',  power: 45, hit: ['a'],                eff: { self: 10 } },
+        { name: 'りんご香バースト', g: 'rm', cost: ['koji', 'water', 'heat'],  kind: 'atk',  power: 75, hit: ['g'],                eff: { plus: 10 } },
+        { name: 'ぜんぶだす',       g: 'rm', cost: ['koji', 'heat', 'heat'],   kind: 'atk',  power: 80, hit: ['a'],                eff: { self: 10 } },
         { name: '親ゆずり',         g: 'sp', cost: ['water', 'heat'],          kind: 'heal', power: 35, hit: ['s', 'a'],           eff: { healPlus: 20 } } // サブ
       ]
     }
