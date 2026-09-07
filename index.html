@@ -4,66 +4,74 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>カモコロ</title>
+<!-- サケノテHPと同じ書体（丸ゴシック＋数字はPoppins）。読めない環境はヒラギノ丸ゴへ落ちる -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 <style>
+  /* サケノテHP準拠（ライト専用）: 白地・薄グレーのパネル・赤=強調・紺=相手側/技/HP */
   :root{
-    --bg:#12100e; --panel:#1e1a16; --line:#3a322a;
-    --fg:#f3ece2; --sub:#a99a86; --accent:#e8b04b; --hp:#7fc98a; --hp2:#d96b5a;
+    --bg:#ffffff; --panel:#f2f2f2; --panel2:#ededed; --line:#e2e2e2;
+    --fg:#252525; --sub:#6f6f6f; --red:#c1392c; --navy:#10165b; --hp:#10165b; --hp2:#c1392c;
+    --jp:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif;
+    --num:"Poppins","Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--fg);
-    font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+    font-family:var(--jp);
     display:flex;justify-content:center;min-height:100vh}
   #app{width:100%;max-width:430px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
   .screen{display:none;flex:1;flex-direction:column}
   .screen.on{display:flex}
-  h1{font-size:26px;margin:6px 0 2px;letter-spacing:.08em}
+  h1{font-size:26px;margin:6px 0 2px;letter-spacing:.08em;color:var(--navy)}
   .lead{color:var(--sub);font-size:13px;margin:0 0 10px}
   /* 蔵めぐりの進み（●○） */
-  .runbar{font-size:13px;color:var(--accent);margin:0 0 8px;letter-spacing:.12em;min-height:18px}
+  .runbar{font-size:13px;color:var(--red);margin:0 0 8px;letter-spacing:.12em;min-height:18px}
   .runbar b{font-weight:400;color:var(--sub);letter-spacing:0;margin-left:6px}
 
   /* 1. キャラ選択 */
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 10px;text-align:center;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--panel);border-radius:16px;padding:12px 10px;text-align:center;cursor:pointer}
   .card:active{transform:scale(.97)}
-  .card.off{opacity:.3;cursor:default}
+  .card.off{opacity:.35;cursor:default}
   .card .em{font-size:40px;line-height:1.1}
-  .card .nm{font-size:15px;font-weight:700;margin-top:4px}
-  .card .at{font-size:11px;color:var(--accent);margin-top:2px;font-weight:700}
-  .card .hp{font-size:12px;color:var(--accent);margin-top:4px}
+  .card .nm{font-size:15px;font-weight:700;margin-top:4px;color:var(--navy)}
+  .card .at{font-size:11px;color:var(--red);margin-top:2px;font-weight:700}
+  .card .hp{font-size:12px;color:var(--navy);margin-top:4px;font-family:var(--num);font-weight:600}
   .card .fc{font-size:11px;color:var(--sub);margin-top:5px;line-height:1.5;letter-spacing:.03em}
-  .card .go{font-size:11px;color:var(--accent);margin-top:4px}
+  .card .go{font-size:11px;color:var(--red);margin-top:4px;font-weight:700}
 
   /* 2. 準備 */
   .prow{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin-bottom:6px}
   .prow .em{font-size:24px}
-  .prow .hp{font-weight:400;font-size:12px;color:var(--accent)}
-  .prow .at{font-weight:700;font-size:12px;color:var(--accent)}
+  .prow .hp{font-weight:600;font-size:12px;color:var(--navy);font-family:var(--num)}
+  .prow .at{font-weight:700;font-size:12px;color:var(--red)}
   .ttl{font-size:11px;color:var(--sub);margin:8px 0 4px}
-  .ttl span{color:var(--accent)}
+  .ttl span{color:var(--red);font-family:var(--num);font-weight:600}
   .pool{display:flex;flex-direction:column;gap:4px}
-  .pv{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
-    border-radius:9px;padding:5px 8px;cursor:pointer;line-height:1.25}
+  .pv{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--panel);
+    border-radius:12px;padding:5px 8px;cursor:pointer;line-height:1.25}
   .pv:active{transform:scale(.99)}
-  .pv.sel{border-color:var(--accent);background:#2a2318}
+  .pv.sel{border-color:var(--navy);background:#fff}
   .pv .g{font-size:9px;color:var(--sub);width:30px;flex:none;text-align:center}
-  .pv.sel .g{color:var(--accent)}
+  .pv.sel .g{color:var(--navy)}
   .pv .n{font-size:13px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pv.sel .n{color:var(--navy)}
   .pv .c{font-size:12px;color:var(--sub);white-space:nowrap}
-  .pv .c b{color:var(--fg);margin-left:3px}
-  .pv .o{font-size:11px;color:var(--accent);white-space:nowrap;width:76px;flex:none;text-align:right}
+  .pv .c b{color:var(--fg);margin-left:3px;font-family:var(--num);font-weight:600}
+  .pv .o{font-size:11px;color:var(--red);white-space:nowrap;width:76px;flex:none;text-align:right}
   .pv .wn{font-size:9px}
 
   /* 準備: エネコロ3個（左・中・右）を3行で。1行＝固定3面（🔒属性×2＋✨）＋カスタム3面（v6） */
   .dierow{display:flex;align-items:center;gap:5px;margin-top:4px}
   .dierow .dl{font-size:11px;color:var(--sub);width:12px;flex:none;text-align:center}
   .facebar{flex:1;display:flex;gap:4px}
-  .fs{flex:1;min-width:0;height:38px;border-radius:9px;background:var(--panel);border:2px solid var(--line);
+  .fs{flex:1;min-width:0;height:38px;border-radius:10px;background:#fff;border:2px solid var(--line);
     display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
   .fs .v{font-size:19px;line-height:1}
-  .fs.chip{border-color:var(--accent)}
+  .fs.chip{border-color:var(--navy)}
   /* 固定3面（属性×2＋✨）＝🔒。押せない */
-  .fs.fix{cursor:default;border-style:dashed;background:#181410}
+  .fs.fix{cursor:default;border-style:dashed;border-color:#d6d6d6;background:var(--panel2)}
   /* 🔒3面とカスタム3面のあいだに切れ目を入れる */
   .fs.cut{margin-left:7px}
   .fs .lk{position:absolute;top:1px;right:3px;font-size:8px;opacity:.65;line-height:1}
@@ -73,37 +81,42 @@
   .inv i{font-style:normal;opacity:.6}
 
   /* チップ選択シート */
-  .sheet{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9;
+  .sheet{display:none;position:fixed;inset:0;background:rgba(37,37,37,.35);z-index:9;
     align-items:flex-end;justify-content:center}
   .sheet.on{display:flex}
-  .sheetin{width:100%;max-width:430px;background:var(--panel);border-top:1px solid var(--line);
-    border-radius:16px 16px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
-  .sheetin h3{font-size:14px;margin:0 0 10px;font-weight:700}
+  .sheetin{width:100%;max-width:430px;background:#fff;border-top:0;box-shadow:0 -6px 24px rgba(0,0,0,.12);
+    border-radius:20px 20px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
+  .sheetin h3{font-size:14px;margin:0 0 10px;font-weight:700;color:var(--navy)}
   .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  .chip{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 2px;text-align:center;cursor:pointer}
+  .chip{background:var(--panel);border:1px solid var(--panel);border-radius:12px;padding:8px 2px;text-align:center;cursor:pointer}
   .chip .v{font-size:19px;line-height:1.1}
   .chip .v.two{font-size:14px;letter-spacing:-1px}
   .chip .k{font-size:10px;color:var(--sub);margin-top:2px}
-  .chip.z{opacity:.3;cursor:default}
-  .chip.on{border-color:var(--accent)}
+  /* 置けないチップ: 絵文字だけ薄く、理由の文字は読める濃さで残す */
+  .chip.z{cursor:default;background:#fff;border-color:var(--line)}
+  .chip.z .v{opacity:.3}
+  .chip.z .k{color:#9a9a9a}
+  .chip.on{border-color:var(--navy);background:#fff}
   .sheetbtns{display:flex;gap:8px;margin-top:10px}
   .sheetbtns .btn{margin-top:0;max-width:none}
 
   /* 3. バトル */
-  .fighter{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+  .fighter{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--panel);border-radius:16px;padding:10px 12px}
+  #f-foe{border-color:var(--navy)}   /* 相手側の枠＝紺 */
   .fighter .em{font-size:38px}
   .fighter .info{flex:1;min-width:0}
   .fighter .nm{font-size:14px;font-weight:700;display:flex;align-items:baseline;gap:6px}
   .fighter .n{white-space:nowrap}
-  .fighter .hpn{font-weight:400;color:var(--sub);font-size:12px;white-space:nowrap}
-  .fighter .at{font-weight:700;color:var(--accent);font-size:11px;white-space:nowrap}
-  .bar{height:9px;background:#2c2620;border-radius:5px;margin-top:6px;overflow:hidden}
+  .fighter .hpn{font-weight:600;color:var(--navy);font-size:12px;white-space:nowrap;font-family:var(--num)}
+  .fighter .at{font-weight:700;color:var(--red);font-size:11px;white-space:nowrap}
+  .bar{height:9px;background:#dcdcdc;border-radius:5px;margin-top:6px;overflow:hidden}
   .bar i{display:block;height:100%;background:var(--hp);transition:width .35s}
   .bar i.low{background:var(--hp2)}
-  .badge{flex:1;text-align:right;font-size:11px;font-weight:400;color:var(--accent);
+  .badge{flex:1;text-align:right;font-size:11px;font-weight:400;color:var(--red);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* 被弾: 揺れ＋パネルが一瞬うすい赤に */
   .hit{animation:hit .4s}
-  @keyframes hit{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+  @keyframes hit{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px);background:#f5d5d1}75%{transform:translateX(7px);background:#f5d5d1}}
 
   /* ダイス置き場: 相手（上・小さめ）と自分（下）で別々に持つ */
   .stage{flex:1;display:flex;flex-direction:column;align-items:center;
@@ -120,26 +133,31 @@
     letter-spacing:-.5px;white-space:nowrap}
   .stage.foe .fl{font-size:9px}
   /* 立方体ダイス: .die=枠（奥行き） / .cube=回る本体 / .f=6面 */
-  .die{position:relative;flex:none;perspective:520px}
+  .die{position:relative;flex:none;perspective:520px;border-radius:var(--r,8px);box-shadow:0 3px 8px rgba(37,37,37,.12)}
+  .dcol.off .die{box-shadow:none}
   .die.big{width:76px;height:76px;font-size:40px;--h:38px;--r:8px}
   .die.en{width:46px;height:46px;font-size:24px;--h:23px;--r:7px}
   .cube{position:absolute;inset:0;transform-style:preserve-3d;
     transition:transform 520ms cubic-bezier(.22,.72,.3,1)}
-  .f{position:absolute;inset:0;border-radius:var(--r);background:var(--panel);
-    border:3px solid var(--line);display:flex;align-items:center;justify-content:center;
+  /* 白い立方体＋柔らかい影（影は面ごと。裏面は backface-visibility で影ごと消える） */
+  .f{position:absolute;inset:0;border-radius:var(--r);background:#fff;
+    border:3px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
     backface-visibility:hidden;-webkit-backface-visibility:hidden}
-  .die.big .f{border-color:var(--accent)}
+  .die.big .f{border-color:#d0d0d0}
   .die.en .f{border-width:2px}
   .f .two{font-size:.62em;letter-spacing:-1px}
-  /* キャラコロの面＝漢字1文字（静・湧・沸・躍・極。勢いが上がっていく順） */
-  .f .kj{font-size:.86em;font-weight:700;line-height:1;color:var(--fg)}
+  /* キャラコロの面＝漢字1文字（静・湧・沸・躍・極。勢いが上がっていく順）。漢字は紺 */
+  .f .kj{font-size:.86em;font-weight:700;line-height:1;color:var(--navy)}
   .f0{transform:translateZ(var(--h))}
   .f1{transform:rotateY(180deg) translateZ(var(--h))}
   .f2{transform:rotateY(90deg) translateZ(var(--h))}
   .f3{transform:rotateY(-90deg) translateZ(var(--h))}
   .f4{transform:rotateX(90deg) translateZ(var(--h))}
   .f5{transform:rotateX(-90deg) translateZ(var(--h))}
-  .dcol.off{opacity:.22}
+  /* 振らないダイス: 白地では透過だけだと消えるので、面をグレーに塗ってから薄くする */
+  .dcol.off{opacity:.4}
+  .dcol.off .f{background:var(--panel2);border-color:var(--panel2);box-shadow:none}
   .die.bnc{animation:dbounce .18s ease-out}
   @keyframes dbounce{0%{transform:translateY(0)}40%{transform:translateY(-5px)}100%{transform:translateY(0)}}
   /* 相手側は一回り小さく */
@@ -147,9 +165,9 @@
   .stage.foe .die.en{width:37px;height:37px;font-size:19px;--h:18.5px;--r:6px}
   .stage.foe .die .f{border-width:2px}
   /* 手番でない側は薄く残す（直前の出目は消さない） */
-  .stage.dim .dcol{opacity:.45}
-  .stage.dim .dcol.off{opacity:.14}
-  .stage.dim .result{opacity:.45}
+  .stage.dim .dcol{opacity:.5}
+  .stage.dim .dcol.off{opacity:.25}
+  .stage.dim .result{opacity:.5}
   .stage.dim .turnlb{opacity:.6}
   /* 動きを減らす設定では回さずに即座に出目を出す */
   @media (prefers-reduced-motion: reduce){
@@ -160,18 +178,21 @@
   .stage.foe .result{font-size:14px;min-height:19px}
   /* 技ボタン: 技名 / コスト 威力　向き→おまけ の2段 */
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-  .mv{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;
+  /* 技ボタン: 白地に紺の枠。押せないときはグレーのパネルに沈める（透過にしない＝白地で消えないように） */
+  .mv{background:#fff;border:1px solid var(--navy);border-radius:16px;padding:8px 10px;
     color:var(--fg);font-family:inherit;text-align:left;cursor:pointer;line-height:1.35}
   .mv:active{transform:scale(.97)}
-  .mv:disabled{opacity:.32;cursor:default}
-  .mv.used{opacity:.5}
-  .mv .n{font-size:14px;font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .mv .tag{display:block;font-style:normal;font-size:10px;color:var(--sub);margin-top:2px}
+  .mv:disabled{background:var(--panel);border-color:var(--panel);cursor:default}
+  .mv:disabled .n{color:#9a9a9a}
+  .mv:disabled .c,.mv:disabled .c b,.mv:disabled .o{color:#b3b3b3}
+  .mv.used{background:var(--panel2);border-color:var(--panel2)}
+  .mv .n{font-size:14px;font-weight:700;color:var(--navy);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mv .tag{display:block;font-style:normal;font-size:10px;color:var(--red);margin-top:2px}
   .mv .c{font-size:12px;color:var(--sub);display:block;margin-top:2px;white-space:nowrap}
-  .mv .c b{color:var(--fg)}
-  .mv .o{color:var(--accent);font-style:normal}
+  .mv .c b{color:var(--fg);font-family:var(--num);font-weight:600}
+  .mv .o{color:var(--red);font-style:normal}
 
-  .log{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;
+  .log{background:var(--panel);border:1px solid var(--panel);border-radius:16px;padding:8px 12px;
     font-size:13px;line-height:1.7;min-height:74px;margin-top:10px}
   .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--sub)}
   .log div:last-child{color:var(--fg)}
@@ -179,21 +200,23 @@
   /* 4. 結果 */
   .endbox{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px}
   .endbox .big{font-size:56px}
-  .endbox .msg{font-size:24px;font-weight:700}
-  .endbox .got{font-size:17px;color:var(--accent);min-height:24px}
+  .endbox .msg{font-size:24px;font-weight:700;color:var(--navy)}
+  .endbox .got{font-size:17px;color:var(--red);font-weight:700;min-height:24px}
   .endbox .dots{font-size:14px;color:var(--sub);letter-spacing:.12em}
   /* 1周クリアのごほうび（4択）。選ぶまで下のボタンは押せない */
   .endbox .pick{display:none;flex-direction:column;align-items:center;gap:6px}
   .endbox .pick.on{display:flex}
   .endbox .pick .lb{font-size:12px;color:var(--sub)}
   .endbox .pick .row{display:flex;gap:8px}
-  .endbox .pick .p{width:54px;height:54px;border:1px solid var(--line);border-radius:12px;
-    background:var(--panel);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .endbox .pick .p{width:54px;height:54px;border:1px solid var(--panel2);border-radius:50%;
+    background:var(--panel2);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer}
   .endbox .pick .p:active{transform:scale(.94)}
-  .btn{background:var(--accent);color:#221a0c;border:0;border-radius:12px;padding:13px 22px;
+  /* ボタンはピル型。主役（たたかう・つぎへ）は赤、脇役は紺の線だけ */
+  .btn{background:var(--red);color:#fff;border:0;border-radius:30px;padding:13px 22px;
     font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;width:100%;max-width:260px}
-  .btn:disabled{opacity:.35;cursor:default}
-  .btn.sub{background:transparent;color:var(--sub);border:1px solid var(--line)}
+  .btn:disabled{background:var(--panel2);color:#9a9a9a;cursor:default}
+  .btn.sub{background:transparent;color:var(--navy);border:1px solid var(--navy)}
+  .btn.sub:disabled{color:#b3b3b3;border-color:#dcdcdc;background:transparent}
   #s-prep .btn{max-width:none;margin-top:10px}
 </style>
 </head>
