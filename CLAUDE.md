@@ -1,4 +1,4 @@
-# 醸しコロ（kamoshi-koro）
+# カモコロ（kamoshi-koro・旧称「醸しコロ」2026-09-07改名）
 
 プラコロ型のサイコロバトルを醸造キャラで組んだ単一HTMLゲーム。2026-09-03新設。
 
@@ -7,7 +7,7 @@
 - ロジック: `engine.js`（ブラウザとnode両用。index.htmlとsimが同じコードを使う2層方式）
 - 本番: `index.html`（単一ファイル＋engine.js。ブラウザで開くだけで動く）
 - 実測: `sim/sim.js`（`node sim/sim.js` で全組み合わせ大量ロール。`--noadv` で3すくみOFF＝先攻ランダム・`--v3` で構成探索）
-- 恒久判断: Vault `10.Projects/醸しコロ/90_開発ログ.md`
+- 恒久判断: Vault `10.Projects/カモコロ/90_開発ログ.md`
 - オーナー思想: `../../template/owner_context.md`（単一原本。コピー禁止）
 
 ## 作法

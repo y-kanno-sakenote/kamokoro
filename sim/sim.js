@@ -1,4 +1,4 @@
-// 醸しコロ 実測（v7: しずく廃止・3すくみは「有利側が先攻」）
+// カモコロ 実測（v7: しずく廃止・3すくみは「有利側が先攻」）
 //  回帰（既定）: 21組×先攻後攻＝42通りを既定2000戦。既定構成（★4技・素の面）＋6体の総合勝率
 //               → 表は42通りぜんぶ出すが、3すくみONのときは**ルール上あり得る先攻**（属性の有利側／
 //                 ミラーは両方）だけを「成立」とし、総合勝率・レンジ・目標未達は成立ぶんで数える
@@ -74,7 +74,7 @@ function runV2() {
   }
 
   var legalRows = rows.filter(function (r) { return r.legal; });
-  console.log('# 醸しコロ v7 既定構成（★4技・素の面）のバランス実測（各 ' + N + ' 戦 / 全 ' + rows.length + ' 通り）');
+  console.log('# カモコロ v7 既定構成（★4技・素の面）のバランス実測（各 ' + N + ' 戦 / 全 ' + rows.length + ' 通り）');
   console.log('属性: ' + ATTR_LINE() + '／' + ADVTAG);
   console.log('先攻の決まり方: ' + (E.typeAdvOn()
     ? '**属性の有利側が先攻**（ミラーはランダム）。表は42通り出すが、集計は**成立 ' + legalRows.length + ' 通り**だけ'
@@ -350,7 +350,7 @@ function runV3() {
   var NS = Math.max(60, Math.floor(N / 10));   // 探索用（粗く回す）
   var TOP = 10;
 
-  console.log('# 醸しコロ v7 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
+  console.log('# カモコロ v7 実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・相手は常に★4技＋素の面の6体）');
   console.log('属性: ' + ATTR_LINE() + '／' + ADVTAG);
   console.log('エネコロは左・中・右の3個。**固定3面（属性×2＋✨）＋カスタム3面**（差し替え先は 3×3＝9スロット）\n');
 
@@ -398,7 +398,7 @@ function runV3() {
 function runBringOnly() {
   var rng = makeRng(20260903);
   var NS = Math.max(60, Math.floor(N / 10)), TOP = 10;
-  console.log('# 醸しコロ 初期配布チップの実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・' + ADVTAG + '）');
+  console.log('# カモコロ 初期配布チップの実測（最終確認 ' + N + ' 戦 / 探索 ' + NS + ' 戦・' + ADVTAG + '）');
   var base = baseWins(N, rng, true);
   var topMoves = searchMoves(moveSets(), NS, TOP, rng, true);
   bringSection(base, topMoves, N, NS, TOP, rng);

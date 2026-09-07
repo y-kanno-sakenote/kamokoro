@@ -1,5 +1,5 @@
 // 担当: ✅ 検証係（マンガー×ファインマン）
-// 醸しコロ v2 バランス探索: CHARS の数値（HP・威力・+N・回復N）だけを動かして目標帯を探す
+// カモコロ v2 バランス探索: CHARS の数値（HP・威力・+N・回復N）だけを動かして目標帯を探す
 // 使い方:
 //   node sim/search_v2.js --iters 4000 --n 400 --seed 1 --out sim/out/candX.json   探索
 //   node sim/search_v2.js --apply sim/out/candX.json --n 2000 --seed 7             候補を別seedで評価
