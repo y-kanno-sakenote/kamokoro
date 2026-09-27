@@ -2,3 +2,6 @@
 exclude:
   - sim
   - CLAUDE.md
+  - docs/spec.md
+  - docs/spec_v3.md
+  - docs/spec_v5.md
