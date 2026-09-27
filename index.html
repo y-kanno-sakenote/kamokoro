@@ -25,6 +25,7 @@
   .screen.on{display:flex}
   h1{font-size:26px;margin:6px 0 2px;letter-spacing:.08em;color:var(--navy)}
   .lead{color:var(--sub);font-size:13px;margin:0 0 10px}
+  .lead a{color:var(--navy);font-weight:700;margin-left:4px}
   /* 蔵めぐりの進み（●○） */
   .runbar{font-size:13px;color:var(--red);margin:0 0 8px;letter-spacing:.12em;min-height:18px}
   .runbar b{font-weight:400;color:var(--sub);letter-spacing:0;margin-left:6px}
@@ -191,6 +192,12 @@
   .mv .c{font-size:12px;color:var(--sub);display:block;margin-top:2px;white-space:nowrap}
   .mv .c b{color:var(--fg);font-family:var(--num);font-weight:600}
   .mv .o{color:var(--red);font-style:normal}
+  /* 375px未満（320px等）: 列を等幅に固定し、当たり目→おまけ は入りきらないときだけ次の行へ（はみ出させない） */
+  @media (max-width:374px){
+    .moves{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .mv .c{white-space:normal}
+    .mv .c .o{display:inline-block;white-space:nowrap}
+  }
 
   .log{background:var(--panel);border:1px solid var(--panel);border-radius:16px;padding:8px 12px;
     font-size:13px;line-height:1.7;min-height:74px;margin-top:10px}
@@ -226,7 +233,7 @@
   <!-- 1. キャラ選択 -->
   <section id="s-select" class="screen on">
     <h1>カモコロ</h1>
-    <p class="lead">酵母を1体えらぶ。蔵をめぐって6体たおす。</p>
+    <p class="lead">酵母を1体えらぶ。蔵をめぐって6体たおす。<a href="docs/zukan.html">ルールと図鑑</a></p>
     <div class="runbar" id="sel-run"></div>
     <div class="cards" id="cards"></div>
   </section>
@@ -242,6 +249,7 @@
     <div class="ttl">チップ <span id="prep-used"></span></div>
     <div class="inv" id="prep-inv"></div>
     <button class="btn" id="go">たたかう</button>
+    <button class="btn sub" id="prep-back">キャラ選択へ</button>
   </section>
 
   <!-- 3. バトル -->
@@ -319,7 +327,7 @@
 
   // ---------------- 保存（localStorage・1キーだけ） ----------------
   var SKEY = 'kamoshi-koro:v3';
-  var SVER = 7;   // v7: チップ在庫を**キャラごと**に持つ（chips[charId] / granted[charId]）・ドロップは4種均等・初期配布は全キャラ8枚。旧版（v6以前）は読まずに初期化する
+  var SVER = 7;   // v7: チップ在庫を**キャラごと**に持つ（chips[charId] / granted[charId]）・ドロップは4種均等・初期配布はそのキャラを初めて選んだときに4枚（v7.3・各1枚。内訳は engine.js の START_CHIPS）。旧版（v6以前）は読まずに初期化する
   var save = null;
 
   function zeroChips(){
@@ -389,6 +397,13 @@
     E.CHARS.forEach(function(c){ s.dice[c.id] = E.normalizeChips(s.dice[c.id]); });
     repairAllSlots(s);                    // 上限違反（1個ごとに 属性3面・他2面）があれば素の面へ戻す
     if (s.run && s.run.lap == null) s.run.lap = 1;
+    // バトル中の印・1周クリアのごほうび待ちは足した欄なので、形が違えば外すだけ（セーブ全体は捨てない）
+    if (s.run){
+      if (s.run.battle !== true || s.run.rest.length === 0) delete s.run.battle;
+      var pk = s.run.pick;
+      if (pk != null && (!Array.isArray(pk) || s.run.rest.length !== 0 ||
+          pk.some(function(k){ return !E.CHIPS[k]; }))) delete s.run.pick;
+    }
     return s;
   }
   // 旧セーブ等でカスタム上限を超えている構成があれば直し、外したチップは在庫に戻す
@@ -410,6 +425,7 @@
   var st = null, myF = null, foeF = null, busy = false, logs = [], prepChar = null;
   var sheetDie = -1, sheetSlot = -1;
   var lastGot = [];
+  var prepMoves = null;  // 準備画面に入ったときの技4つ（4つ揃わないまま戻ったら、これに戻してから保存する）
   var pending = false;   // 1周クリアのごほうび待ち（選ぶまで結果画面から進めない）
 
   function $(id){ return document.getElementById(id); }
@@ -466,7 +482,7 @@
   }
 
   function chooseChar(id){
-    // 手持ちチップ（全キャラ4種2枚ずつ＝8枚）。**そのキャラを初めて選んだときに、そのキャラの在庫へ**。選ぶピッカーは作らない
+    // 手持ちチップ（v7.3: 全キャラ4種1枚ずつ＝4枚。内訳は engine.js の START_CHIPS）。**そのキャラを初めて選んだときに、そのキャラの在庫へ**。選ぶピッカーは作らない
     if (!save.granted[id]){
       var g = E.startChips(id);
       E.CHIP_ORDER.forEach(function(k){ save.chips[id][k] += g[k]; });
@@ -486,6 +502,7 @@
       writeSave();
     }
     prepChar = E.getChar(save.run.charId);
+    prepMoves = save.moves[prepChar.id].slice();
     drawPrep();
     show('s-prep');
   }
@@ -646,8 +663,18 @@
 
   $('go').onclick = function(){
     if (save.moves[prepChar.id].length !== 4) return;
+    save.run.battle = true;                   // バトル中の印。抜けて戻ってきたら負け扱い（起動時の resumeAfterReload）
     writeSave();                              // 保存①: たたかう
     newBattle();
+  };
+  // 準備画面からキャラ選択へ。周を捨てる（勝ちがあるときだけ確かめる）。もらったチップはそのまま
+  $('prep-back').onclick = function(){
+    var r = save.run;
+    if (r && r.wins > 0 &&
+        !window.confirm('蔵めぐり（' + r.wins + '勝）をやめて、キャラ選択へもどる？\nもらったチップはそのまま残る。')) return;
+    if (save.moves[prepChar.id].length !== 4) save.moves[prepChar.id] = prepMoves.slice();  // 技4つは保存の条件
+    save.run = null; writeSave();
+    drawSelect(); show('s-select');
   };
 
   // ---------------- 3. バトル ----------------
@@ -915,16 +942,23 @@
       lastGot.push(E.rollDrop(null));   // v7: 勝つたびに🌾🍚💧🔥のどれか1枚（4種均等・相手タイプ寄りは廃止）
       save.run.wins++;
       save.run.rest.shift();
+      delete save.run.battle;
       lastGot.forEach(function(k){ save.chips[save.run.charId][k]++; });   // いま使っているキャラの在庫へ
+      if (save.run.rest.length === 0) save.run.pick = lastGot.slice();    // 1周クリア: ごほうび待ちも保存（リロードで消えないように）
     } else {
       save.run = null;                                            // 負けたらその周は終了
     }
     writeSave();                                                  // 保存②: 結果画面の表示時
+    drawEnd(win, win ? myF.emoji : foeF.emoji, '');
+  }
 
-    $('end-em').textContent = win ? myF.emoji : foeF.emoji;
+  // 結果画面を描く。起動時の復元（バトル中に抜けた負け／ごほうび待ち）からも呼ぶ
+  function drawEnd(win, em, note){
+    $('end-em').textContent = em;
     var cleared = win && save.run && save.run.rest.length === 0;
     $('end-msg').textContent = cleared ? '1周クリア！' : (win ? 'かった！' : 'まけた…');
     drawGot();
+    if (note) $('end-got').textContent = note;
     $('end-dots').innerHTML = win ? '蔵めぐり ' + dots(save.run.wins) : '蔵めぐり ' + dots(0);
     $('again').textContent = win ? (cleared ? 'もう1周' : 'つぎへ') : 'もういちど';
     $('toselect').textContent = win ? 'やめる' : 'キャラ選択へ';
@@ -964,6 +998,7 @@
     if (!pending || !save.run) return;
     if (!E.grantLapBonus(save.chips[save.run.charId], k)) return;   // 在庫加算は engine.js が持つ
     lastGot.push(k);
+    delete save.run.pick;
     writeSave();                 // 保存③: 1周クリアの追加1枚
     drawPick(false);
     drawGot();
@@ -982,8 +1017,31 @@
   };
 
   // ---------------- 起動 ----------------
-  drawSelect();
-  show('s-select');
+  // 前回の続き: バトル中に抜けていたら負け（負けたときと同じ結果画面へ）／ごほうび待ちならその結果画面へ
+  function resumeAfterReload(){
+    var r = save.run;
+    if (!r) return false;
+    if (r.battle){
+      var foe = E.getChar(r.rest[0]);
+      prepChar = E.getChar(r.charId);
+      lastGot = [];
+      save.run = null;
+      writeSave();
+      drawEnd(false, foe.emoji, 'とちゅうで抜けたので負け');
+      return true;
+    }
+    if (r.pick && r.rest.length === 0){
+      prepChar = E.getChar(r.charId);
+      lastGot = r.pick.slice();
+      drawEnd(true, prepChar.emoji, '');
+      return true;
+    }
+    return false;
+  }
+  if (!resumeAfterReload()){
+    drawSelect();
+    show('s-select');
+  }
 })();
 </script>
 </body>
