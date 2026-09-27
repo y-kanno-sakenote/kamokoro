@@ -1,0 +1,4 @@
+# GitHub Pages（Jekyll）の配信対象から開発用ファイルを外す。リポジトリには残す
+exclude:
+  - sim
+  - CLAUDE.md
